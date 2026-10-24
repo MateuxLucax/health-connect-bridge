@@ -60,7 +60,7 @@ class EndToEndTest {
     private val sleepStart = base.minus(Duration.ofHours(8))
 
     @Test
-    fun syncsHealthConnectToPrometheus() = runBlocking {
+    fun syncsHealthConnectToPrometheus(): Unit = runBlocking {
         shell("mkdir -p $SCREENSHOT_DIR")
         // The activity schedules the periodic sync on start; keep it from running alongside the test.
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
