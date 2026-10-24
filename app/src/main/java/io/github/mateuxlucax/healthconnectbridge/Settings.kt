@@ -22,8 +22,16 @@ class Settings(val prefs: SharedPreferences) {
     val changesTypes: String?
         get() = prefs.getString(KEY_CHANGES_TYPES, null)
 
-    fun saveChangesToken(token: String, types: String) {
-        prefs.edit().putString(KEY_CHANGES_TOKEN, token).putString(KEY_CHANGES_TYPES, types).apply()
+    /** When the changes token was last saved, i.e. how far back the checkpoint covers; 0 if never. */
+    val changesSavedMs: Long
+        get() = prefs.getLong(KEY_CHANGES_SAVED, 0L)
+
+    fun saveChangesToken(token: String, types: String, nowMs: Long = System.currentTimeMillis()) {
+        prefs.edit()
+            .putString(KEY_CHANGES_TOKEN, token)
+            .putString(KEY_CHANGES_TYPES, types)
+            .putLong(KEY_CHANGES_SAVED, nowMs)
+            .apply()
     }
 
     var lastSuccessMs: Long
@@ -51,6 +59,7 @@ class Settings(val prefs: SharedPreferences) {
         const val KEY_TOKEN = "token"
         const val KEY_CHANGES_TOKEN = "changes_token"
         const val KEY_CHANGES_TYPES = "changes_types"
+        const val KEY_CHANGES_SAVED = "changes_saved_ms"
         const val KEY_LAST_SUCCESS = "last_success_ms"
         const val KEY_LAST_ERROR = "last_error"
         const val KEY_LAST_ERROR_DETAIL = "last_error_detail"

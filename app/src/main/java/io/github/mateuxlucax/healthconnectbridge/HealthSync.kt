@@ -28,7 +28,7 @@ class HealthSync(
         val typesKey = types.map { it.java.simpleName }.sorted().joinToString(",")
 
         var token = settings.changesToken?.takeIf { settings.changesTypes == typesKey }
-            ?: initialRead(client, types, typesKey, INITIAL_DAYS)
+            ?: initialRead(client, types, typesKey, reinitDays())
 
         while (true) {
             val response = client.getChanges(token)
@@ -52,6 +52,16 @@ class HealthSync(
         val client = client()
         val end = Instant.now()
         readRange(client, readableTypes(client), end.minus(Duration.ofDays(days.toLong())), end)
+    }
+
+    /**
+     * Days to read when (re)starting the checkpoint: 7 on a fresh install, but when the set of types changed,
+     * everything since the last saved checkpoint (it may be days old after an outage), up to 30.
+     */
+    private fun reinitDays(): Long {
+        val savedMs = settings.changesSavedMs.takeIf { it > 0 } ?: return INITIAL_DAYS
+        val days = Duration.ofMillis(System.currentTimeMillis() - savedMs).toDays() + 1
+        return days.coerceIn(INITIAL_DAYS, EXPIRED_TOKEN_DAYS)
     }
 
     /** Takes a changes token first so nothing written during the read is missed, then stores it. */

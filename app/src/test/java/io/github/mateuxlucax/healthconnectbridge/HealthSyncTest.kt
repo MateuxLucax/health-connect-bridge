@@ -266,6 +266,37 @@ class HealthSyncTest {
     }
 
     @Test
+    fun grantedTypesChanged_afterLongOutage_readsSinceLastCheckpoint() {
+        client.granted = permissionsFor(StepsRecord::class)
+        initialize("t1")
+        // The last checkpoint is 10 days old (e.g. the server was down), then a new type is granted.
+        settings.saveChangesToken("t1", settings.changesTypes!!, System.currentTimeMillis() - Duration.ofDays(10).toMillis())
+        client.granted = permissionsFor(StepsRecord::class, WeightRecord::class)
+        client.issuedTokens += "fresh"
+        client.changesHandler = { changes(next = "fresh2") }
+
+        run()
+
+        assertTrue(client.readRequests.isNotEmpty())
+        client.readRequests.forEach { assertRangeDays(it, 11) }
+        assertEquals("fresh2", settings.changesToken)
+    }
+
+    @Test
+    fun grantedTypesChanged_afterVeryLongOutage_readsAtMostThirtyDays() {
+        client.granted = permissionsFor(StepsRecord::class)
+        initialize("t1")
+        settings.saveChangesToken("t1", settings.changesTypes!!, System.currentTimeMillis() - Duration.ofDays(90).toMillis())
+        client.granted = permissionsFor(StepsRecord::class, WeightRecord::class)
+        client.issuedTokens += "fresh"
+        client.changesHandler = { changes(next = "fresh2") }
+
+        run()
+
+        client.readRequests.forEach { assertRangeDays(it, 30) }
+    }
+
+    @Test
     fun deletions_produceNoSamples() {
         initialize("t1")
         client.changesHandler = { changes(DeletionChange("gone-1"), DeletionChange("gone-2"), next = "t2") }
