@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /** Outcome of "Test connection": [ok] is null while the request runs; [error] is set when it failed. */
@@ -25,7 +26,12 @@ class ConnectionTest(private val scope: CoroutineScope) {
     fun run(url: String, token: String) {
         job?.cancel()
         result = TestResult(null)
-        job = scope.launch { result = test(url.trim(), token.trim()) }
+        job = scope.launch {
+            val outcome = test(url.trim(), token.trim())
+            // A blocking request can still end (e.g. with an IOException) after cancellation; drop its outcome.
+            ensureActive()
+            result = outcome
+        }
     }
 
     fun clear() {
