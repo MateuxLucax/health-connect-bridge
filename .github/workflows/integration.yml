@@ -70,7 +70,9 @@ jobs:
       - name: Instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: "37.0" # the app's targetSdk
+          # The API 37 image (android-37.0, the app's targetSdk) boots, but its system_server keeps
+          # restarting on the runner, so installs fail. 36 is the newest stable one.
+          api-level: 36
           target: google_apis
           arch: x86_64
           cores: 4
@@ -78,7 +80,6 @@ jobs:
           disk-size: 8G
           emulator-boot-timeout: 900
           script: |
-            sleep 60 # let the freshly booted system settle (package manager restarts during first boot)
             adb shell settings put global sysui_demo_allowed 1 || true
             adb shell am broadcast -a com.android.systemui.demo -e command enter || true
             adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1000 || true
