@@ -56,6 +56,7 @@
 
     <!-- Shared components -->
     <string name="server_url">Server URL</string>
+    <string name="url_cleartext_warning">Token and data will be sent unencrypted over the internet. Use https outside your home network.</string>
     <string name="token">Token</string>
     <string name="show_token">Show token</string>
     <string name="hide_token">Hide token</string>

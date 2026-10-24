@@ -30,7 +30,7 @@ fun SettingsScreen(settings: Settings, status: DeviceStatus?, actions: AppAction
     var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
     var token by rememberSaveable { mutableStateOf(settings.token) }
     val test = rememberConnectionTest()
-    val filled = url.isNotBlank() && token.isNotBlank()
+    val filled = ServerUrl.isValid(url) && token.isNotBlank()
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),

@@ -101,6 +101,7 @@ class HealthSync(
         if (settings.serverUrl.isBlank() || settings.token.isBlank()) {
             throw SetupException(SyncError.Kind.NOT_CONFIGURED)
         }
+        if (!ServerUrl.isValid(settings.serverUrl)) throw SetupException(SyncError.Kind.INVALID_URL)
         return clientFactory()
     }
 

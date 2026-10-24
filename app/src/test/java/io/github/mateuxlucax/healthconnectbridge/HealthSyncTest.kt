@@ -300,6 +300,16 @@ class HealthSyncTest {
     }
 
     @Test
+    fun invalidSavedUrl_isSetupError() {
+        settings.serverUrl = "ftp://example.com"
+
+        val error = runExpectingFailure()
+
+        assertEquals(SyncError.Kind.INVALID_URL, (error as SetupException).kind)
+        assertTrue(client.calls.isEmpty())
+    }
+
+    @Test
     fun onlyGrantedTypesAreRead() {
         client.granted = permissionsFor(WeightRecord::class)
         client.issuedTokens += "t1"

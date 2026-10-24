@@ -28,6 +28,7 @@ class ConnectionTest(private val scope: CoroutineScope) {
     }
 
     private suspend fun test(url: String, token: String): TestResult = try {
+        if (!ServerUrl.isValid(url)) throw SetupException(SyncError.Kind.INVALID_URL)
         Uploader.check(url, token)
         TestResult(true)
     } catch (e: CancellationException) {

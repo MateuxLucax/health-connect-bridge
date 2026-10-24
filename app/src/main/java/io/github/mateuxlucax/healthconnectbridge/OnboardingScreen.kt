@@ -54,7 +54,7 @@ fun OnboardingScreen(settings: Settings, status: DeviceStatus?, actions: AppActi
     BackHandler(enabled = step > 0) { step-- }
 
     val canContinue = when (step) {
-        1 -> url.isNotBlank() && token.isNotBlank()
+        1 -> ServerUrl.isValid(url) && token.isNotBlank()
         2 -> (status?.grantedReads ?: 0) > 0
         else -> true
     }
@@ -180,7 +180,7 @@ private fun ServerStep(url: String, onUrlChange: (String) -> Unit, token: String
     ServerFields(url, { onUrlChange(it); test.clear() }, token, { onTokenChange(it); test.clear() })
     OutlinedButton(
         onClick = { test.run(url, token) },
-        enabled = url.isNotBlank() && token.isNotBlank(),
+        enabled = ServerUrl.isValid(url) && token.isNotBlank(),
         modifier = Modifier.fillMaxWidth(),
     ) { Text(stringResource(R.string.test_connection)) }
     TestResultLine(test.result)

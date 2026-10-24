@@ -146,12 +146,24 @@ fun TestResultLine(result: TestResult?) {
 @Composable
 fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTokenChange: (String) -> Unit) {
     var showToken by rememberSaveable { mutableStateOf(false) }
+    val invalid = url.isNotBlank() && !ServerUrl.isValid(url)
+    val problem = when {
+        invalid -> stringResource(R.string.error_invalid_url)
+        ServerUrl.isCleartextToPublicHost(url) -> stringResource(R.string.url_cleartext_warning)
+        else -> null
+    }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedTextField(
             value = url,
             onValueChange = onUrlChange,
             label = { Text(stringResource(R.string.server_url)) },
             placeholder = { Text("http://192.168.0.10:8080") },
+            isError = problem != null,
+            supportingText = if (problem != null) {
+                { Text(problem) }
+            } else {
+                null
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
