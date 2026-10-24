@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.healthconnectbridge
 
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,6 +15,9 @@ class UploaderTest {
 
     @After
     fun tearDown() = server.close()
+
+    // Compiled against android.jar's org.json, which has keys() but not keySet().
+    private fun JSONObject.keyNames(): Set<String> = keys().asSequence().toSet()
 
     private fun sample(i: Int) =
         Sample("health_steps", mapOf("source" to "com.example.app"), i, 1_700_000_000_000L + i)
@@ -67,14 +71,14 @@ class UploaderTest {
         upload(samples = samples)
 
         val json = server.requests.single().json
-        assertEquals(setOf("samples"), json.keySet())
+        assertEquals(setOf("samples"), json.keyNames())
         val array = json.getJSONArray("samples")
         assertEquals(2, array.length())
 
         val first = array.getJSONObject(0)
-        assertEquals(setOf("metric", "labels", "value", "timestamp_ms"), first.keySet())
+        assertEquals(setOf("metric", "labels", "value", "timestamp_ms"), first.keyNames())
         assertEquals("health_heart_rate_bpm", first.getString("metric"))
-        assertEquals(setOf("source"), first.getJSONObject("labels").keySet())
+        assertEquals(setOf("source"), first.getJSONObject("labels").keyNames())
         assertEquals("com.example.watch", first.getJSONObject("labels").getString("source"))
         assertEquals(72.0, first.getDouble("value"), 0.0)
         assertTrue(first.get("value") is Number)
@@ -84,7 +88,7 @@ class UploaderTest {
         val second = array.getJSONObject(1)
         assertEquals("health_sleep_stage_seconds", second.getString("metric"))
         val labels = second.getJSONObject("labels")
-        assertEquals(setOf("source", "stage"), labels.keySet())
+        assertEquals(setOf("source", "stage"), labels.keyNames())
         assertEquals("com.example.sleep", labels.getString("source"))
         assertEquals("deep", labels.getString("stage"))
         assertEquals(1800.5, second.getDouble("value"), 0.0)
