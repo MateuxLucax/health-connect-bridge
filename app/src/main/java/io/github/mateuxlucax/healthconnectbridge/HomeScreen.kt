@@ -35,7 +35,7 @@ import kotlinx.coroutines.delay
 import java.time.ZoneId
 
 @Composable
-fun HomeScreen(settings: Settings, refreshKey: Int, onSyncNow: () -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(settings: Settings, refreshKey: Int, syncKey: Int, onSyncNow: () -> Unit, modifier: Modifier = Modifier) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(refreshKey) {
         while (true) {
@@ -43,9 +43,9 @@ fun HomeScreen(settings: Settings, refreshKey: Int, onSyncNow: () -> Unit, modif
             delay(30_000)
         }
     }
-    val lastSuccess = remember(refreshKey) { settings.lastSuccessMs }
-    val lastError = remember(refreshKey) { settings.lastError }
-    val values = remember(refreshKey) { LastValues(settings.prefs).all() }
+    val lastSuccess = remember(refreshKey, syncKey) { settings.lastSuccessMs }
+    val lastError = remember(refreshKey, syncKey) { settings.lastError }
+    val values = remember(refreshKey, syncKey) { LastValues(settings.prefs).all() }
     val zone = ZoneId.systemDefault()
     val format = rememberFormat()
 

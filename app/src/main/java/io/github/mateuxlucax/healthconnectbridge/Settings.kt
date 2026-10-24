@@ -72,18 +72,24 @@ class Settings(val prefs: SharedPreferences) {
             (serverUrl.isNotBlank() && token.isNotBlank() && changesToken != null)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
-    private companion object {
-        const val KEY_SERVER_URL = "server_url"
-        const val KEY_TOKEN = "token"
-        const val KEY_CHANGES_TOKEN = "changes_token"
-        const val KEY_CHANGES_TYPES = "changes_types"
-        const val KEY_CHANGES_SAVED = "changes_saved_ms"
-        const val KEY_LAST_SUCCESS = "last_success_ms"
-        const val KEY_LAST_ERROR = "last_error"
-        const val KEY_LAST_ERROR_DETAIL = "last_error_detail"
-        const val KEY_BACKFILL_FINISHED = "backfill_finished_ms"
-        const val KEY_BACKFILL_ERROR = "backfill_error"
-        const val KEY_BACKFILL_ERROR_DETAIL = "backfill_error_detail"
-        const val KEY_ONBOARDING_DONE = "onboarding_done"
+    companion object {
+        /** Keys written by syncs and shown by the screens; other writes don't need a refresh. */
+        val SYNC_STATE_KEYS get() = setOf(
+            KEY_LAST_SUCCESS, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL, LastValues.KEY,
+            KEY_BACKFILL_FINISHED, KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL,
+        )
+
+        private const val KEY_SERVER_URL = "server_url"
+        private const val KEY_TOKEN = "token"
+        private const val KEY_CHANGES_TOKEN = "changes_token"
+        private const val KEY_CHANGES_TYPES = "changes_types"
+        private const val KEY_CHANGES_SAVED = "changes_saved_ms"
+        private const val KEY_LAST_SUCCESS = "last_success_ms"
+        private const val KEY_LAST_ERROR = "last_error"
+        private const val KEY_LAST_ERROR_DETAIL = "last_error_detail"
+        private const val KEY_BACKFILL_FINISHED = "backfill_finished_ms"
+        private const val KEY_BACKFILL_ERROR = "backfill_error"
+        private const val KEY_BACKFILL_ERROR_DETAIL = "backfill_error_detail"
+        private const val KEY_ONBOARDING_DONE = "onboarding_done"
     }
 }

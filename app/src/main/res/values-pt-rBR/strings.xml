@@ -72,6 +72,7 @@
         <item quantity="many">Todas as %d permissões concedidas.</item>
         <item quantity="other">Todas as %d permissões concedidas.</item>
     </plurals>
+    <string name="status_load_failed">Não foi possível ler o estado do Health Connect. Ele é verificado de novo quando você volta ao app.</string>
     <string name="permissions_none">Nenhuma permissão concedida ainda.</string>
     <plurals name="permissions_some">
         <item quantity="one">%1$d de %2$d permissão concedida.</item>

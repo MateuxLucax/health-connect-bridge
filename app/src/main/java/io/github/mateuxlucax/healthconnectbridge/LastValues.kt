@@ -40,8 +40,8 @@ class LastValues(private val prefs: SharedPreferences) {
         return if (label == null) s.metric else s.metric + SEPARATOR + label
     }
 
-    private companion object {
-        const val KEY = "last_values"
-        const val SEPARATOR = ":"
+    companion object {
+        internal const val KEY = "last_values"
+        private const val SEPARATOR = ":"
     }
 }

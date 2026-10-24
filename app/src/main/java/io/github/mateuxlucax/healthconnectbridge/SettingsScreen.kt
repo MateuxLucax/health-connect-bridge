@@ -29,7 +29,9 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     settings: Settings,
     status: DeviceStatus?,
+    statusFailed: Boolean,
     refreshKey: Int,
+    syncKey: Int,
     actions: AppActions,
     modifier: Modifier = Modifier,
 ) {
@@ -64,12 +66,12 @@ fun SettingsScreen(
 
         SectionCard(stringResource(R.string.section_history)) {
             BodyText(stringResource(R.string.history_settings_text))
-            val lastBackfill = remember(refreshKey) { settings.lastBackfill }
+            val lastBackfill = remember(refreshKey, syncKey) { settings.lastBackfill }
             HistoryImport(lastBackfill) { SyncWorker.backfill(context, it) }
         }
 
         SectionCard(stringResource(R.string.section_permissions)) {
-            PermissionState(status, actions.requestHealthPermissions)
+            PermissionState(status, statusFailed, actions.requestHealthPermissions)
             BatteryState(status, actions.requestBatteryExemption)
         }
 

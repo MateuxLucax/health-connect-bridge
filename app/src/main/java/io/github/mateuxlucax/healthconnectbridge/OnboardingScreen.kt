@@ -46,7 +46,13 @@ private const val STEPS = 5
 
 /** First-launch setup: welcome, server, permissions, battery, history. */
 @Composable
-fun OnboardingScreen(settings: Settings, status: DeviceStatus?, actions: AppActions, onFinish: () -> Unit) {
+fun OnboardingScreen(
+    settings: Settings,
+    status: DeviceStatus?,
+    statusFailed: Boolean,
+    actions: AppActions,
+    onFinish: () -> Unit,
+) {
     val context = LocalContext.current
     var step by rememberSaveable { mutableIntStateOf(0) }
     var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
@@ -94,7 +100,7 @@ fun OnboardingScreen(settings: Settings, status: DeviceStatus?, actions: AppActi
                 when (step) {
                     0 -> WelcomeStep()
                     1 -> ServerStep(url, { url = it }, token, { token = it })
-                    2 -> PermissionsStep(status, actions.requestHealthPermissions)
+                    2 -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
                     3 -> BatteryStep(status, actions.requestBatteryExemption)
                     else -> HistoryStep { SyncWorker.backfill(context, it) }
                 }
@@ -187,10 +193,10 @@ private fun ServerStep(url: String, onUrlChange: (String) -> Unit, token: String
 }
 
 @Composable
-private fun PermissionsStep(status: DeviceStatus?, onRequest: () -> Unit) {
+private fun PermissionsStep(status: DeviceStatus?, statusFailed: Boolean, onRequest: () -> Unit) {
     StepTitle(stringResource(R.string.permissions_title))
     BodyText(stringResource(R.string.permissions_text))
-    PermissionState(status, onRequest)
+    PermissionState(status, statusFailed, onRequest)
     Text(stringResource(R.string.what_app_reads), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
     Category.entries.forEach { category ->
         Column {

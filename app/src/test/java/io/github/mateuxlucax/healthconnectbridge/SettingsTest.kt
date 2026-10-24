@@ -28,4 +28,20 @@ class SettingsTest {
         settings.saveChangesToken("token", "StepsRecord")
         assertTrue(settings.onboardingDone)
     }
+
+    @Test
+    fun syncStateKeys_coverWhatSyncsWrite_notTheServerSettings() {
+        val prefs = InMemoryPrefs()
+        val s = Settings(prefs)
+        s.lastSuccessMs = 1
+        s.lastError = SyncError(SyncError.Kind.NETWORK, "x")
+        s.lastBackfill = BackfillResult(1, null)
+        LastValues(prefs).record(listOf(Sample("health_steps", mapOf("source" to "a"), 1, 1L)))
+        assertTrue(Settings.SYNC_STATE_KEYS.containsAll(prefs.values.keys))
+
+        s.serverUrl = "http://x"
+        s.token = "t"
+        s.onboardingDone = true
+        assertFalse(Settings.SYNC_STATE_KEYS.any { it in setOf("server_url", "token", "onboarding_done") })
+    }
 }

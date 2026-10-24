@@ -21,13 +21,18 @@ class AppActions(val requestHealthPermissions: () -> Unit, val requestBatteryExe
 class MainActivity : ComponentActivity() {
     private lateinit var settings: Settings
 
-    /** Bumped when the app returns to the foreground or a setting changes, so screens re-read state. */
+    /** Bumped when the app returns to the foreground or permissions change: screens re-read everything. */
     private var refreshKey by mutableIntStateOf(0)
+
+    /** Bumped when a sync writes state that the screens show. */
+    private var syncKey by mutableIntStateOf(0)
 
     private val permissionRequest =
         registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { refreshKey++ }
 
-    private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refreshKey++ }
+    private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in Settings.SYNC_STATE_KEYS) syncKey++
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -36,7 +41,7 @@ class MainActivity : ComponentActivity() {
         if (settings.onboardingDone) SyncWorker.schedulePeriodic(this)
         val actions = AppActions(::requestHealthPermissions, ::requestBatteryExemption)
         setContent {
-            AppTheme { App(settings, refreshKey, actions) }
+            AppTheme { App(settings, refreshKey, syncKey, actions) }
         }
     }
 

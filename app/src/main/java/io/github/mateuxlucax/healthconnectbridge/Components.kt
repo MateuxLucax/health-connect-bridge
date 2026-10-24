@@ -227,7 +227,8 @@ fun HistoryImport(last: BackfillResult?, onImport: (Int) -> Unit) {
 
 /** Health Connect availability and granted count, with the button to grant what is missing. */
 @Composable
-fun PermissionState(status: DeviceStatus?, onRequest: () -> Unit) {
+fun PermissionState(status: DeviceStatus?, failed: Boolean, onRequest: () -> Unit) {
+    if (failed) StatusLine(false, stringResource(R.string.status_load_failed))
     when {
         status == null -> Unit
         !status.healthConnectAvailable -> StatusLine(
