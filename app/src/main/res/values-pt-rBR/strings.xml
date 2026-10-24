@@ -2,7 +2,7 @@
 <!-- Português do Brasil. Mesmas chaves de values/strings.xml (verificado por TranslationsTest). -->
 <resources>
     <string name="app_name">Health Connect Bridge</string>
-    <string name="privacy_text">Política de privacidade\n\nO Health Connect Bridge lê os dados de saúde que você autorizar no Health Connect (frequência cardíaca, passos, calorias, sono, exercícios e outros) e os envia somente para o servidor que você configurar no app.\n\nNenhum dado é enviado a terceiros, e o app não coleta estatísticas de uso. Você pode revogar as permissões a qualquer momento nas configurações do Health Connect.</string>
+    <string name="privacy_text">Política de privacidade\n\nO Health Connect Bridge só lê os dados do Health Connect que você autorizar (frequência cardíaca, passos, calorias, sono, exercícios e outros). Ele envia esses dados somente para o servidor que você configurar.\n\nNada vai para terceiros. O app não coleta estatísticas de uso. Você pode revogar o acesso a qualquer momento nas configurações do Health Connect.</string>
 
     <!-- Navegação e início -->
     <string name="tab_home">Início</string>
@@ -11,22 +11,22 @@
     <string name="settings_saved">Configurações salvas</string>
     <string name="last_sync">Última sincronização</string>
     <string name="never">Nunca</string>
-    <string name="status_ok">Tudo certo: os dados chegaram ao servidor.</string>
-    <string name="status_auto">Os dados são enviados automaticamente a cada 15 minutos.</string>
+    <string name="status_ok">Os dados chegaram ao servidor.</string>
+    <string name="status_auto">Sincroniza a cada 15 minutos.</string>
     <string name="sync_now">Sincronizar agora</string>
-    <string name="error_title">A última tentativa falhou</string>
+    <string name="error_title">A última sincronização falhou</string>
     <string name="cd_error">Erro</string>
     <string name="cd_ok">OK</string>
     <string name="exported_data">Dados exportados</string>
-    <string name="empty_title">Nada exportado ainda</string>
-    <string name="empty_text">Os últimos valores enviados ao servidor aparecem aqui depois da primeira sincronização.</string>
+    <string name="empty_title">Nenhum dado enviado ainda</string>
+    <string name="empty_text">Os últimos valores enviados ao servidor aparecem aqui após a primeira sincronização.</string>
 
     <!-- Configurações -->
     <string name="section_server">Servidor</string>
     <string name="test_connection">Testar conexão</string>
     <string name="save">Salvar</string>
     <string name="section_history">Importar histórico</string>
-    <string name="history_settings_text">Lê de novo os últimos dias do Health Connect e envia ao servidor. O Prometheus só aceita dados dentro da janela de dados fora de ordem (30 dias na configuração padrão do exporter).</string>
+    <string name="history_settings_text">Lê de novo os dias anteriores do Health Connect e envia ao servidor. Na configuração padrão do exporter, o Prometheus aceita dados de até 30 dias.</string>
     <string name="section_permissions">Permissões e bateria</string>
     <string name="version">Versão %1$s</string>
 
@@ -36,40 +36,40 @@
     <string name="next">Próximo</string>
     <string name="skip">Pular</string>
     <string name="finish">Concluir</string>
-    <string name="welcome_title">Bem-vindo</string>
-    <string name="welcome_text">Este app lê seus dados de saúde do Health Connect (frequência cardíaca, passos, sono, peso e mais) e envia para o seu próprio servidor, a cada 15 minutos.</string>
+    <string name="welcome_title">Boas-vindas</string>
+    <string name="welcome_text">O app lê seus dados do Health Connect: frequência cardíaca, passos, sono, peso e mais. A cada 15 minutos, ele envia os dados para o seu servidor.</string>
     <string name="your_server">Seu servidor</string>
     <string name="prometheus_grafana">Prometheus e Grafana</string>
-    <string name="welcome_server_text">O servidor (health-connect-prometheus-exporter) grava os dados no Prometheus, e você acompanha tudo em gráficos no Grafana.</string>
-    <string name="welcome_privacy_text">Seus dados vão somente para o servidor que você configurar. Nada é enviado a terceiros.</string>
+    <string name="welcome_server_text">O servidor (health-connect-prometheus-exporter) grava os dados no Prometheus. Você vê os gráficos no Grafana.</string>
+    <string name="welcome_privacy_text">Os dados vão só para o servidor que você configurar. Nada vai para terceiros.</string>
     <string name="flow_watch">Relógio</string>
     <string name="flow_phone">Celular</string>
     <string name="flow_server">Servidor</string>
     <string name="flow_grafana">Grafana</string>
     <string name="flow_description">Do relógio para o celular, para o seu servidor e para o Grafana</string>
-    <string name="server_text">Informe o endereço do health-connect-prometheus-exporter e o token configurado nele. Na rede de casa, algo como http://192.168.0.10:8080.</string>
+    <string name="server_text">Informe a URL e o token do seu health-connect-prometheus-exporter. Exemplo na rede de casa: http://192.168.0.10:8080</string>
     <string name="permissions_title">Permissões</string>
-    <string name="permissions_text">O app só lê do Health Connect, nunca escreve. Conceda acesso aos dados que quiser exportar e permita também o acesso em segundo plano e ao histórico, para a sincronização automática.</string>
+    <string name="permissions_text">O app só lê do Health Connect. Ele nunca grava nada. Autorize os dados que você quer enviar. Autorize também o acesso em segundo plano e ao histórico, para a sincronização automática.</string>
     <string name="what_app_reads">O que o app lê</string>
     <string name="battery_title">Bateria</string>
-    <string name="battery_text">No Galaxy (One UI) e em outros aparelhos, a otimização de bateria coloca apps em suspensão e pode cancelar a sincronização em segundo plano.</string>
-    <string name="battery_text_2">Desative a otimização só para este app para os dados chegarem ao servidor mesmo com a tela desligada. O consumo é pequeno: cada sincronização leva poucos segundos.</string>
-    <string name="battery_skip_text">Se preferir, pule esta etapa e faça isso depois em Configurações.</string>
-    <string name="history_text">A sincronização automática envia os últimos 7 dias e tudo o que chegar depois. Para enviar dados mais antigos, importe o histórico: o app lê de novo os últimos dias do Health Connect e envia ao servidor.</string>
-    <string name="history_text_2">O Prometheus só aceita dados dentro da janela de dados fora de ordem, que é de 30 dias na configuração padrão do exporter. Dados mais antigos que isso são recusados.</string>
-    <string name="history_text_3">Você também pode importar depois, em Configurações. Toque em Concluir para começar a usar o app.</string>
+    <string name="battery_text">No Galaxy (One UI) e em outros aparelhos, a otimização de bateria pode interromper a sincronização em segundo plano.</string>
+    <string name="battery_text_2">Desative para este app, e os dados chegam ao servidor mesmo com a tela desligada. Cada sincronização leva poucos segundos, então o consumo é baixo.</string>
+    <string name="battery_skip_text">Você pode pular e fazer isso depois em Configurações.</string>
+    <string name="history_text">A sincronização automática envia os últimos 7 dias e tudo o que for novo. Para enviar dados mais antigos, importe o histórico.</string>
+    <string name="history_text_2">Na configuração padrão do exporter, o Prometheus aceita dados de até 30 dias. Dados mais antigos são recusados.</string>
+    <string name="history_text_3">Você também pode importar depois em Configurações. Toque em Concluir para começar.</string>
 
     <!-- Componentes -->
     <string name="server_url">URL do servidor</string>
-    <string name="url_cleartext_warning">O token e os dados serão enviados sem criptografia pela internet. Use https fora da rede de casa.</string>
+    <string name="url_cleartext_warning">Sem https, o token e os dados trafegam sem criptografia. Use https fora da rede de casa.</string>
     <string name="token">Token</string>
     <string name="show_token">Mostrar token</string>
     <string name="hide_token">Ocultar token</string>
     <string name="days">Dias</string>
     <string name="import_history">Importar</string>
-    <string name="import_scheduled">Importação agendada. Ela roda em segundo plano; o resultado aparece em Configurações, em Importar histórico.</string>
-    <string name="backfill_done">Última importação concluída em %1$s.</string>
-    <string name="backfill_failed">A última importação falhou: %1$s</string>
+    <string name="import_scheduled">Importação agendada. Ela roda em segundo plano. O resultado aparece em Importar histórico.</string>
+    <string name="backfill_done">Última importação: %1$s.</string>
+    <string name="backfill_failed">Última importação falhou: %1$s</string>
     <string name="hc_update_required">Atualize o Health Connect para continuar.</string>
     <string name="hc_unavailable">O Health Connect não está disponível neste aparelho.</string>
     <plurals name="permissions_all">
@@ -77,33 +77,33 @@
         <item quantity="many">Todas as %d permissões concedidas.</item>
         <item quantity="other">Todas as %d permissões concedidas.</item>
     </plurals>
-    <string name="status_load_failed">Não foi possível ler o estado do Health Connect. Ele é verificado de novo quando você volta ao app.</string>
-    <string name="background_missing">O acesso em segundo plano não foi concedido, então a sincronização automática não consegue ler o Health Connect. Conceda nas permissões.</string>
-    <string name="permissions_none">Nenhuma permissão concedida ainda.</string>
+    <string name="status_load_failed">Não foi possível ler o estado do Health Connect. O app verifica de novo quando você voltar.</string>
+    <string name="background_missing">Conceda o acesso em segundo plano para a sincronização automática ler o Health Connect.</string>
+    <string name="permissions_none">Nenhuma permissão concedida.</string>
     <plurals name="permissions_some">
         <item quantity="one">%1$d de %2$d permissão concedida.</item>
         <item quantity="many">%1$d de %2$d permissões concedidas.</item>
         <item quantity="other">%1$d de %2$d permissões concedidas.</item>
     </plurals>
-    <string name="grant_permissions">Conceder permissões</string>
-    <string name="battery_exempt">Otimização de bateria desativada para o app.</string>
-    <string name="battery_optimized">A otimização de bateria está ativa: o sistema pode interromper a sincronização.</string>
-    <string name="battery_disable">Desativar otimização de bateria</string>
+    <string name="grant_permissions">Conceder acesso</string>
+    <string name="battery_exempt">Otimização de bateria desativada.</string>
+    <string name="battery_optimized">Otimização de bateria ativa. O sistema pode interromper a sincronização.</string>
+    <string name="battery_disable">Desativar otimização</string>
     <string name="test_running">Testando conexão…</string>
-    <string name="test_ok">Conexão OK: o servidor aceitou o token.</string>
+    <string name="test_ok">Conectado. O servidor aceitou o token.</string>
 
     <!-- Erros de sincronização (SyncError.Kind) -->
-    <string name="error_unauthorized">Token rejeitado pelo servidor (401).</string>
-    <string name="error_rejected">Servidor recusou os dados: %1$s</string>
-    <string name="error_redirected">O servidor redirecionou a requisição (%1$s). Confira a URL, por exemplo http em vez de https.</string>
-    <string name="error_server">Erro no servidor: %1$s</string>
-    <string name="error_not_configured">Configure a URL do servidor e o token.</string>
+    <string name="error_unauthorized">Servidor recusou o token (401). Confira o token.</string>
+    <string name="error_rejected">Servidor recusou os dados (%1$s). Confira os logs do servidor.</string>
+    <string name="error_redirected">Servidor redirecionou a requisição (%1$s). Confira a URL, por exemplo http ou https.</string>
+    <string name="error_server">Erro no servidor (%1$s). Tente de novo mais tarde.</string>
+    <string name="error_not_configured">Informe a URL do servidor e o token.</string>
     <string name="error_invalid_url">URL inválida. Exemplo: http://192.168.0.10:8080</string>
-    <string name="error_no_permissions">Nenhuma permissão de leitura do Health Connect concedida.</string>
-    <string name="error_health_connect_unavailable">Health Connect indisponível neste aparelho.</string>
-    <string name="error_permission_denied">Permissão negada pelo Health Connect: %1$s</string>
-    <string name="error_network">Falha de comunicação: %1$s</string>
-    <string name="error_other">Erro: %1$s</string>
+    <string name="error_no_permissions">Nenhuma permissão do Health Connect concedida. Conceda acesso aos seus dados.</string>
+    <string name="error_health_connect_unavailable">O Health Connect não está disponível neste aparelho.</string>
+    <string name="error_permission_denied">O Health Connect negou acesso (%1$s). Confira as permissões.</string>
+    <string name="error_network">Não foi possível conectar ao servidor (%1$s). Confira a rede e a URL.</string>
+    <string name="error_other">Erro inesperado: %1$s</string>
 
     <!-- Tipos de dados (Catalog.kt) -->
     <string name="category_heart">Coração</string>
@@ -127,7 +127,7 @@
     <string name="type_active_calories">Calorias ativas</string>
     <string name="type_active_calories_desc">Calorias gastas em atividade</string>
     <string name="type_total_calories">Calorias totais</string>
-    <string name="type_total_calories_desc">Calorias gastas no total, incluindo em repouso</string>
+    <string name="type_total_calories_desc">Todas as calorias gastas, incluindo em repouso</string>
     <string name="type_exercise">Exercícios</string>
     <string name="type_exercise_desc">Tipo e duração de cada treino</string>
     <string name="type_vo2_max">VO₂ máximo</string>

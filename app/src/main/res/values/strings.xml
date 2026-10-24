@@ -2,7 +2,7 @@
 <!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
     <string name="app_name">Health Connect Bridge</string>
-    <string name="privacy_text">Privacy policy\n\nHealth Connect Bridge reads the health data you allow in Health Connect (heart rate, steps, calories, sleep, exercise and more) and sends it only to the server you set up in the app.\n\nNo data is sent to third parties, and the app collects no usage statistics. You can revoke the permissions at any time in the Health Connect settings.</string>
+    <string name="privacy_text">Privacy policy\n\nHealth Connect Bridge has read-only access to the Health Connect data you allow (heart rate, steps, calories, sleep, exercise and more). It sends that data only to the server you configure.\n\nNothing goes to third parties. The app collects no usage statistics. You can revoke access at any time in Health Connect settings.</string>
 
     <!-- Navigation and home -->
     <string name="tab_home">Home</string>
@@ -11,22 +11,22 @@
     <string name="settings_saved">Settings saved</string>
     <string name="last_sync">Last sync</string>
     <string name="never">Never</string>
-    <string name="status_ok">All good: the data reached the server.</string>
-    <string name="status_auto">Data is sent automatically every 15 minutes.</string>
+    <string name="status_ok">Data reached the server.</string>
+    <string name="status_auto">Syncs every 15 minutes.</string>
     <string name="sync_now">Sync now</string>
-    <string name="error_title">The last attempt failed</string>
+    <string name="error_title">Last sync failed</string>
     <string name="cd_error">Error</string>
     <string name="cd_ok">OK</string>
     <string name="exported_data">Exported data</string>
-    <string name="empty_title">Nothing exported yet</string>
-    <string name="empty_text">The last values sent to the server show up here after the first sync.</string>
+    <string name="empty_title">No data sent yet</string>
+    <string name="empty_text">The last values sent to the server appear here after the first sync.</string>
 
     <!-- Settings -->
     <string name="section_server">Server</string>
     <string name="test_connection">Test connection</string>
     <string name="save">Save</string>
     <string name="section_history">Import history</string>
-    <string name="history_settings_text">Reads the last days from Health Connect again and sends them to the server. Prometheus only accepts data within its out-of-order window (30 days in the exporter’s default configuration).</string>
+    <string name="history_settings_text">Reads past days from Health Connect again and sends them to the server. With the exporter’s default settings, Prometheus accepts data up to 30 days old.</string>
     <string name="section_permissions">Permissions and battery</string>
     <string name="version">Version %1$s</string>
 
@@ -35,73 +35,73 @@
     <string name="back">Back</string>
     <string name="next">Next</string>
     <string name="skip">Skip</string>
-    <string name="finish">Finish</string>
+    <string name="finish">Done</string>
     <string name="welcome_title">Welcome</string>
-    <string name="welcome_text">This app reads your health data from Health Connect (heart rate, steps, sleep, weight and more) and sends it to your own server every 15 minutes.</string>
+    <string name="welcome_text">The app reads your Health Connect data: heart rate, steps, sleep, weight and more. It sends the data to your server every 15 minutes.</string>
     <string name="your_server">Your server</string>
     <string name="prometheus_grafana">Prometheus and Grafana</string>
-    <string name="welcome_server_text">The server (health-connect-prometheus-exporter) writes the data to Prometheus, and you follow everything in Grafana charts.</string>
-    <string name="welcome_privacy_text">Your data goes only to the server you set up. Nothing is sent to third parties.</string>
+    <string name="welcome_server_text">The server (health-connect-prometheus-exporter) stores the data in Prometheus. You view the charts in Grafana.</string>
+    <string name="welcome_privacy_text">Data goes only to the server you set up. Nothing goes to third parties.</string>
     <string name="flow_watch">Watch</string>
     <string name="flow_phone">Phone</string>
     <string name="flow_server">Server</string>
     <string name="flow_grafana">Grafana</string>
     <string name="flow_description">Watch to phone to your server to Grafana</string>
-    <string name="server_text">Enter the address of health-connect-prometheus-exporter and the token configured on it. On a home network, something like http://192.168.0.10:8080.</string>
+    <string name="server_text">Enter the URL and token of your health-connect-prometheus-exporter. Home network example: http://192.168.0.10:8080</string>
     <string name="permissions_title">Permissions</string>
-    <string name="permissions_text">The app only reads from Health Connect, it never writes. Grant access to the data you want to export, and also allow background and history access for automatic sync.</string>
+    <string name="permissions_text">The app only reads from Health Connect. It never writes. Allow the data you want to send. Also allow background and history access for automatic sync.</string>
     <string name="what_app_reads">What the app reads</string>
     <string name="battery_title">Battery</string>
-    <string name="battery_text">On Galaxy (One UI) and other phones, battery optimization puts apps to sleep and can cancel the background sync.</string>
-    <string name="battery_text_2">Turn off optimization for this app only, so the data reaches the server even with the screen off. The cost is small: each sync takes a few seconds.</string>
-    <string name="battery_skip_text">If you prefer, skip this step and do it later in Settings.</string>
-    <string name="history_text">Automatic sync sends the last 7 days and everything that arrives afterwards. To send older data, import the history: the app reads the last days from Health Connect again and sends them to the server.</string>
-    <string name="history_text_2">Prometheus only accepts data within its out-of-order window, which is 30 days in the exporter’s default configuration. Older data is rejected.</string>
-    <string name="history_text_3">You can also import later, in Settings. Tap Finish to start using the app.</string>
+    <string name="battery_text">On Galaxy (One UI) and other phones, battery optimization can stop background sync.</string>
+    <string name="battery_text_2">Turn it off for this app so data reaches the server with the screen off. Each sync takes a few seconds, so battery use is low.</string>
+    <string name="battery_skip_text">You can skip this and do it later in Settings.</string>
+    <string name="history_text">Automatic sync sends the last 7 days and everything new. To send older data, import your history.</string>
+    <string name="history_text_2">With the exporter’s default settings, Prometheus accepts data up to 30 days old. Older data is rejected.</string>
+    <string name="history_text_3">You can also import later in Settings. Tap Done to start.</string>
 
     <!-- Shared components -->
     <string name="server_url">Server URL</string>
-    <string name="url_cleartext_warning">Token and data will be sent unencrypted over the internet. Use https outside your home network.</string>
+    <string name="url_cleartext_warning">Without https, the token and data travel unencrypted. Use https outside your home network.</string>
     <string name="token">Token</string>
     <string name="show_token">Show token</string>
     <string name="hide_token">Hide token</string>
     <string name="days">Days</string>
     <string name="import_history">Import</string>
-    <string name="import_scheduled">Import scheduled. It runs in the background; the result shows up in Settings, under Import history.</string>
-    <string name="backfill_done">Last import finished on %1$s.</string>
+    <string name="import_scheduled">Import scheduled. It runs in the background. The result appears under Import history.</string>
+    <string name="backfill_done">Last import: %1$s.</string>
     <string name="backfill_failed">Last import failed: %1$s</string>
     <string name="hc_update_required">Update Health Connect to continue.</string>
-    <string name="hc_unavailable">Health Connect is not available on this device.</string>
+    <string name="hc_unavailable">Health Connect isn’t available on this device.</string>
     <plurals name="permissions_all">
         <item quantity="one">%d permission granted.</item>
         <item quantity="other">All %d permissions granted.</item>
     </plurals>
-    <string name="status_load_failed">Couldn’t read the Health Connect status. It is checked again when you return to the app.</string>
-    <string name="background_missing">Background access isn’t granted, so the automatic sync can’t read Health Connect. Grant it in the permissions.</string>
-    <string name="permissions_none">No permissions granted yet.</string>
+    <string name="status_load_failed">Couldn’t read the Health Connect status. The app checks again when you come back.</string>
+    <string name="background_missing">Grant background access so automatic sync can read Health Connect.</string>
+    <string name="permissions_none">No permissions granted.</string>
     <plurals name="permissions_some">
         <item quantity="one">%1$d of %2$d permission granted.</item>
         <item quantity="other">%1$d of %2$d permissions granted.</item>
     </plurals>
-    <string name="grant_permissions">Grant permissions</string>
-    <string name="battery_exempt">Battery optimization is off for the app.</string>
-    <string name="battery_optimized">Battery optimization is on: the system may stop the sync.</string>
-    <string name="battery_disable">Turn off battery optimization</string>
+    <string name="grant_permissions">Grant access</string>
+    <string name="battery_exempt">Battery optimization is off.</string>
+    <string name="battery_optimized">Battery optimization is on. The system may stop sync.</string>
+    <string name="battery_disable">Turn off optimization</string>
     <string name="test_running">Testing connection…</string>
-    <string name="test_ok">Connection OK: the server accepted the token.</string>
+    <string name="test_ok">Connected. The server accepted the token.</string>
 
     <!-- Sync errors (SyncError.Kind) -->
-    <string name="error_unauthorized">Token rejected by server (401).</string>
-    <string name="error_rejected">Server rejected the data: %1$s</string>
-    <string name="error_redirected">The server redirected the request (%1$s). Check the URL, for example http instead of https.</string>
-    <string name="error_server">Server error: %1$s</string>
-    <string name="error_not_configured">Set the server URL and token.</string>
+    <string name="error_unauthorized">Server rejected the token (401). Check the token.</string>
+    <string name="error_rejected">Server rejected the data (%1$s). Check the server logs.</string>
+    <string name="error_redirected">Server redirected the request (%1$s). Check the URL, e.g. http vs. https.</string>
+    <string name="error_server">Server error (%1$s). Try again later.</string>
+    <string name="error_not_configured">Enter the server URL and token.</string>
     <string name="error_invalid_url">Invalid URL. Example: http://192.168.0.10:8080</string>
-    <string name="error_no_permissions">No Health Connect read permission granted.</string>
-    <string name="error_health_connect_unavailable">Health Connect is not available on this device.</string>
-    <string name="error_permission_denied">Permission denied by Health Connect: %1$s</string>
-    <string name="error_network">Network error: %1$s</string>
-    <string name="error_other">Error: %1$s</string>
+    <string name="error_no_permissions">No Health Connect permission granted. Grant access to your data.</string>
+    <string name="error_health_connect_unavailable">Health Connect isn’t available on this device.</string>
+    <string name="error_permission_denied">Health Connect denied access (%1$s). Check the permissions.</string>
+    <string name="error_network">Couldn’t reach the server (%1$s). Check the network and the URL.</string>
+    <string name="error_other">Unexpected error: %1$s</string>
 
     <!-- Data types (Catalog.kt) -->
     <string name="category_heart">Heart</string>
@@ -125,7 +125,7 @@
     <string name="type_active_calories">Active calories</string>
     <string name="type_active_calories_desc">Calories burned in activity</string>
     <string name="type_total_calories">Total calories</string>
-    <string name="type_total_calories_desc">Calories burned in total, including at rest</string>
+    <string name="type_total_calories_desc">All calories burned, including at rest</string>
     <string name="type_exercise">Exercise</string>
     <string name="type_exercise_desc">Type and duration of each workout</string>
     <string name="type_vo2_max">VO₂ max</string>
