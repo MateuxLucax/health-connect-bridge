@@ -69,4 +69,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "health-connect-bridge-$VERSION_NAME.apk" --title "$GITHUB_REF_NAME" --generate-notes
+        # The release may already exist when it was drafted and published in the GitHub UI.
+        run: |
+          apk="health-connect-bridge-$VERSION_NAME.apk"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$apk" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
