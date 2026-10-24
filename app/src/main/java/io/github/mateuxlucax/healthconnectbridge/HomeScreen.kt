@@ -35,7 +35,14 @@ import kotlinx.coroutines.delay
 import java.time.ZoneId
 
 @Composable
-fun HomeScreen(settings: Settings, refreshKey: Int, syncKey: Int, onSyncNow: () -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    settings: Settings,
+    status: DeviceStatus?,
+    refreshKey: Int,
+    syncKey: Int,
+    onSyncNow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(refreshKey) {
         while (true) {
@@ -53,13 +60,21 @@ fun HomeScreen(settings: Settings, refreshKey: Int, syncKey: Int, onSyncNow: () 
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        SyncCard(lastSuccess, lastError, now, zone, format, onSyncNow)
+        SyncCard(lastSuccess, lastError, status?.backgroundMissing == true, now, zone, format, onSyncNow)
         ExportedValues(values, now, zone, format)
     }
 }
 
 @Composable
-private fun SyncCard(lastSuccess: Long, lastError: SyncError?, now: Long, zone: ZoneId, format: Format, onSyncNow: () -> Unit) {
+private fun SyncCard(
+    lastSuccess: Long,
+    lastError: SyncError?,
+    backgroundMissing: Boolean,
+    now: Long,
+    zone: ZoneId,
+    format: Format,
+    onSyncNow: () -> Unit,
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column {
@@ -87,6 +102,7 @@ private fun SyncCard(lastSuccess: Long, lastError: SyncError?, now: Long, zone: 
                 lastSuccess > 0 -> StatusLine(true, stringResource(R.string.status_ok))
                 else -> StatusLine(null, stringResource(R.string.status_auto))
             }
+            if (backgroundMissing) BackgroundWarning()
             Button(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
                 Icon(painterResource(R.drawable.ic_sync), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))

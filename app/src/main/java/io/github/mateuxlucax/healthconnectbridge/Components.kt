@@ -248,11 +248,18 @@ fun PermissionState(status: DeviceStatus?, failed: Boolean, onRequest: () -> Uni
                     pluralStringResource(R.plurals.permissions_some, status.requested, status.granted, status.requested),
                 )
             }
+            if (status.backgroundMissing) BackgroundWarning()
             if (status.granted < status.requested) {
                 Button(onClick = onRequest, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.grant_permissions)) }
             }
         }
     }
+}
+
+/** Shown when background reads are supported but not granted. */
+@Composable
+fun BackgroundWarning() {
+    StatusLine(false, stringResource(R.string.background_missing))
 }
 
 @Composable

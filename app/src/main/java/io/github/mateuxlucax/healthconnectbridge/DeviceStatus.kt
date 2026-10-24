@@ -12,6 +12,8 @@ class DeviceStatus(
     val requested: Int,
     val grantedReads: Int,
     val batteryExempt: Boolean,
+    /** Background reads are supported but not granted: the periodic sync can't read Health Connect. */
+    val backgroundMissing: Boolean = false,
 ) {
     val healthConnectAvailable get() = healthConnect == HealthConnectClient.SDK_AVAILABLE
 
@@ -23,15 +25,25 @@ class DeviceStatus(
             if (sdk != HealthConnectClient.SDK_AVAILABLE) return DeviceStatus(sdk, 0, 0, 0, batteryExempt)
 
             val client = HealthConnectClient.getOrCreate(context)
-            val requested = HealthSync.requestedPermissions(client)
             val reads = HealthSync.supportedTypes(client).map { HealthPermission.getReadPermission(it) }
-            val granted = client.permissionController.getGrantedPermissions()
+            return from(
+                requested = HealthSync.requestedPermissions(client),
+                reads = reads,
+                granted = client.permissionController.getGrantedPermissions(),
+                batteryExempt = batteryExempt,
+            )
+        }
+
+        /** Status of an available Health Connect, from the [requested] and [granted] permissions. */
+        fun from(requested: Set<String>, reads: List<String>, granted: Set<String>, batteryExempt: Boolean): DeviceStatus {
+            val background = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
             return DeviceStatus(
-                healthConnect = sdk,
+                healthConnect = HealthConnectClient.SDK_AVAILABLE,
                 granted = requested.count { it in granted },
                 requested = requested.size,
                 grantedReads = reads.count { it in granted },
                 batteryExempt = batteryExempt,
+                backgroundMissing = background in requested && background !in granted,
             )
         }
     }

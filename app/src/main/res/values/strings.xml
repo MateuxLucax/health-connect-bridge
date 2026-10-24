@@ -72,6 +72,7 @@
         <item quantity="other">All %d permissions granted.</item>
     </plurals>
     <string name="status_load_failed">Couldn’t read the Health Connect status. It is checked again when you return to the app.</string>
+    <string name="background_missing">Background access isn’t granted, so the automatic sync can’t read Health Connect. Grant it in the permissions.</string>
     <string name="permissions_none">No permissions granted yet.</string>
     <plurals name="permissions_some">
         <item quantity="one">%1$d of %2$d permission granted.</item>
