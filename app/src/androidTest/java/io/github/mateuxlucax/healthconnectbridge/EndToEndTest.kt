@@ -122,9 +122,9 @@ class EndToEndTest {
         assertExpectedSeries("health_weight_kg")
 
         screenshot("home-light") { text(it, R.string.status_ok) }
-        val permissions = HealthSync.requestedPermissions(client).size
+        val permissionCount = HealthSync.requestedPermissions(client).size
         screenshot("settings", action = { click(text(it, R.string.tab_settings)) }) {
-            resources(it).getQuantityString(R.plurals.permissions_all, permissions, permissions)
+            resources(it).getQuantityString(R.plurals.permissions_all, permissionCount, permissionCount)
         }
         shell("cmd uimode night yes")
         waitUntil("night mode") {
