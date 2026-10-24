@@ -35,6 +35,12 @@ jobs:
           go-version-file: exporter/go.mod
           cache: false
 
+      - name: Probe system images
+        run: |
+          sm=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          echo "::notice title=stable::$($sm --list 2>/dev/null | grep -E 'system-images;android-3[4-9][^;]*;google_apis;x86_64' | awk '{print $1}' | sort -u | tr '\n' ' ')"
+          echo "::notice title=canary::$($sm --list --channel=3 2>/dev/null | grep -E 'system-images;android-3[4-9][^;]*;google_apis;x86_64' | awk '{print $1}' | sort -u | tr '\n' ' ')"
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
