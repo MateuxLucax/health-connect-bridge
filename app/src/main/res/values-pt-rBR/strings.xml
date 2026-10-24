@@ -42,6 +42,11 @@
     <string name="prometheus_grafana">Prometheus e Grafana</string>
     <string name="welcome_server_text">O servidor (health-connect-prometheus-exporter) grava os dados no Prometheus, e você acompanha tudo em gráficos no Grafana.</string>
     <string name="welcome_privacy_text">Seus dados vão somente para o servidor que você configurar. Nada é enviado a terceiros.</string>
+    <string name="flow_watch">Relógio</string>
+    <string name="flow_phone">Celular</string>
+    <string name="flow_server">Servidor</string>
+    <string name="flow_grafana">Grafana</string>
+    <string name="flow_description">Do relógio para o celular, para o seu servidor e para o Grafana</string>
     <string name="server_text">Informe o endereço do health-connect-prometheus-exporter e o token configurado nele. Na rede de casa, algo como http://192.168.0.10:8080.</string>
     <string name="permissions_title">Permissões</string>
     <string name="permissions_text">O app só lê do Health Connect, nunca escreve. Conceda acesso aos dados que quiser exportar e permita também o acesso em segundo plano e ao histórico, para a sincronização automática.</string>

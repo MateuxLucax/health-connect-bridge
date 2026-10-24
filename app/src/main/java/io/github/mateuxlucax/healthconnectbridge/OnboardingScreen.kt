@@ -20,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -39,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 private const val STEPS = 5
@@ -162,18 +160,7 @@ private fun StepTitle(text: String) {
 private fun WelcomeStep() {
     StepTitle(stringResource(R.string.welcome_title))
     BodyText(stringResource(R.string.welcome_text))
-    Card(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.fillMaxWidth().padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // "Health Connect" is a product name and the arrows are symbols: neither is translated.
-            listOf("Health Connect", "↓", stringResource(R.string.your_server), "↓", stringResource(R.string.prometheus_grafana)).forEach {
-                Text(it, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-            }
-        }
-    }
+    DataFlow(Modifier.padding(vertical = 8.dp))
     BodyText(stringResource(R.string.welcome_server_text))
     BodyText(stringResource(R.string.welcome_privacy_text))
 }
