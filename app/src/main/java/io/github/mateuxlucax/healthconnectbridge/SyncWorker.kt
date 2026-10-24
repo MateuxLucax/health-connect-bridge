@@ -61,10 +61,14 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             )
         }
 
+        /**
+         * REPLACE, not KEEP: a previous manual run waiting in retry backoff would otherwise swallow the tap.
+         * Replacing a running sync is safe: the checkpoint moves per uploaded page and [mutex] serializes runs.
+         */
         fun syncNow(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "sync-now",
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<SyncWorker>().setConstraints(networkConstraint).build(),
             )
         }

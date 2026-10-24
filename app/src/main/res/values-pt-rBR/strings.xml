@@ -7,7 +7,7 @@
     <!-- Navegação e início -->
     <string name="tab_home">Início</string>
     <string name="tab_settings">Configurações</string>
-    <string name="sync_started">Sincronização iniciada</string>
+    <string name="sync_scheduled">Sincronização agendada</string>
     <string name="settings_saved">Configurações salvas</string>
     <string name="last_sync">Última sincronização</string>
     <string name="never">Nunca</string>

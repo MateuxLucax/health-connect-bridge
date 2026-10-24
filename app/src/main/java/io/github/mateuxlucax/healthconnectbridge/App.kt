@@ -87,7 +87,7 @@ private fun MainScreen(settings: Settings, status: DeviceStatus?, refreshKey: In
         if (tab == 0) {
             HomeScreen(settings, refreshKey, onSyncNow = {
                 SyncWorker.syncNow(context)
-                Toast.makeText(context, R.string.sync_started, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.sync_scheduled, Toast.LENGTH_SHORT).show()
             }, modifier)
         } else {
             SettingsScreen(settings, status, actions, modifier)
