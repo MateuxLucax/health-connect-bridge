@@ -2,6 +2,7 @@ package io.github.mateuxlucax.healthconnectbridge
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.ParcelFileDescriptor
@@ -40,12 +41,13 @@ import java.net.URLEncoder
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
  * Real Health Connect -> app sync -> exporter -> Prometheus, on an emulator. The workflow runs the
  * exporter and Prometheus on the host (10.0.2.2) and passes the exporter's token as `-e token`.
- * Also saves the README screenshots to [SCREENSHOT_DIR].
+ * Also saves the README screenshots to [SCREENSHOT_DIR], in English and (under pt-BR/) Portuguese.
  */
 class EndToEndTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -63,7 +65,7 @@ class EndToEndTest {
 
     @Test
     fun syncsHealthConnectToPrometheus(): Unit = runBlocking {
-        shell("mkdir -p $SCREENSHOT_DIR")
+        shell("mkdir -p $SCREENSHOT_DIR/pt-BR")
         // The activity schedules the periodic sync on start; keep it from running alongside the test.
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "periodic-sync",
@@ -79,13 +81,16 @@ class EndToEndTest {
         client.insertRecords(records())
         settings.serverUrl = "http://10.0.2.2:8080"
         settings.token = token
-        onboardingScreenshots()
-        assertTrue(settings.onboardingDone)
+        for (language in LANGUAGES) {
+            settings.prefs.edit().putBoolean("onboarding_done", false).commit()
+            onboardingScreenshots(language)
+            assertTrue(settings.onboardingDone)
+        }
 
         // Wrong token: the app shows the 401 and nothing reaches Prometheus.
         settings.token = "wrong-$token"
         sync()
-        assertEquals("Token rejeitado pelo servidor (401).", settings.lastError)
+        assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError)
         assertEquals(0L, settings.lastSuccessMs)
         assertNull(settings.changesToken)
         assertEquals(0, query("""{__name__=~"health_.+"}[30d]""").length())
@@ -110,11 +115,12 @@ class EndToEndTest {
         assertExpectedSeries("health_weight_kg")
 
         screenshot("home-light")
-        screenshot("settings") { click("Configurações") }
+        screenshot("settings") { click(text(it, R.string.tab_settings)) }
         shell("cmd uimode night yes")
         Thread.sleep(2_000)
         screenshot("home-dark")
         shell("cmd uimode night no")
+        setAppLocale(LANGUAGES.first())
     }
 
     @Test
@@ -234,42 +240,68 @@ class EndToEndTest {
 
     private val device: UiDevice get() = UiDevice.getInstance(instrumentation)
 
-    /** Opens the app, runs [action], then saves a screenshot. */
-    private fun screenshot(name: String, action: () -> Unit = {}) {
-        ActivityScenario.launch(MainActivity::class.java).use {
-            Thread.sleep(2_000) // state is loaded asynchronously
-            action()
-            Thread.sleep(1_000)
-            save(name, instrumentation.uiAutomation.takeScreenshot())
+    /** In each language: opens the app, runs [action], then saves a screenshot. */
+    private fun screenshot(name: String, action: (Language) -> Unit = {}) {
+        for (language in LANGUAGES) {
+            setAppLocale(language)
+            ActivityScenario.launch(MainActivity::class.java).use {
+                Thread.sleep(2_000) // state is loaded asynchronously
+                action(language)
+                Thread.sleep(1_000)
+                save(language.dir + name, instrumentation.uiAutomation.takeScreenshot())
+            }
         }
     }
 
-    /** Walks through the five onboarding steps, with the server and permissions already set up. */
-    private fun onboardingScreenshots() {
+    /** Walks through the five onboarding steps in [language], with the server and permissions already set up. */
+    private fun onboardingScreenshots(language: Language) {
+        setAppLocale(language)
+        fun t(id: Int, vararg args: Any) = text(language, id, *args)
+        fun step(n: Int) = waitFor(t(R.string.step_of, n, 5))
+        fun shot(name: String) = save(language.dir + name, instrumentation.uiAutomation.takeScreenshot())
         ActivityScenario.launch(MainActivity::class.java).use {
-            waitFor("Passo 1 de 5")
-            save("onboarding-1-welcome", instrumentation.uiAutomation.takeScreenshot())
-            click("Próximo")
-            waitFor("Passo 2 de 5")
-            click("Testar conexão")
-            waitFor("Conexão OK: o servidor aceitou o token.", 15_000)
-            save("onboarding-2-server", instrumentation.uiAutomation.takeScreenshot())
-            click("Próximo")
-            waitFor("Passo 3 de 5")
-            waitFor("Todas as ${HealthSync.requestedPermissions(client).size} permissões concedidas.")
-            save("onboarding-3-permissions", instrumentation.uiAutomation.takeScreenshot())
-            click("Próximo")
-            waitFor("Passo 4 de 5")
+            step(1)
+            shot("onboarding-1-welcome")
+            click(t(R.string.next))
+            step(2)
+            click(t(R.string.test_connection))
+            waitFor(t(R.string.test_ok), 15_000)
+            shot("onboarding-2-server")
+            click(t(R.string.next))
+            step(3)
+            val permissions = HealthSync.requestedPermissions(client).size
+            waitFor(resources(language).getQuantityString(R.plurals.permissions_all, permissions, permissions))
+            shot("onboarding-3-permissions")
+            click(t(R.string.next))
+            step(4)
             Thread.sleep(1_000)
-            save("onboarding-4-battery", instrumentation.uiAutomation.takeScreenshot())
-            click("Pular")
-            waitFor("Passo 5 de 5")
+            shot("onboarding-4-battery")
+            click(t(R.string.skip))
+            step(5)
             Thread.sleep(1_000)
-            save("onboarding-5-history", instrumentation.uiAutomation.takeScreenshot())
-            click("Concluir")
-            waitFor("Sincronizar agora")
+            shot("onboarding-5-history")
+            click(t(R.string.finish))
+            waitFor(t(R.string.sync_now))
         }
     }
+
+    /** Sets the app's own language (Android 13+ per-app languages) and waits until the app sees it. */
+    private fun setAppLocale(language: Language) {
+        shell("cmd locale set-app-locales $source --locales ${language.tag}")
+        val deadline = System.currentTimeMillis() + 10_000
+        while (context.resources.configuration.locales[0].toLanguageTag() != language.tag &&
+            System.currentTimeMillis() < deadline
+        ) {
+            Thread.sleep(200)
+        }
+    }
+
+    private fun resources(language: Language) = context.createConfigurationContext(
+        Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag(language.tag)) }
+    ).resources
+
+    private fun text(language: Language, id: Int, vararg args: Any): String =
+        if (args.isEmpty()) resources(language).getString(id) else resources(language).getString(id, *args)
 
     private fun waitFor(text: String, timeoutMs: Long = 10_000): UiObject2 =
         device.wait(Until.findObject(By.text(text)), timeoutMs)
@@ -337,7 +369,11 @@ class EndToEndTest {
         ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command))
             .use { String(it.readBytes()) }
 
+    /** A UI language and the screenshot subdirectory for it ("" for the README's English set). */
+    class Language(val tag: String, val dir: String)
+
     private companion object {
+        val LANGUAGES = listOf(Language("en-US", ""), Language("pt-BR", "pt-BR/"))
         const val SCREENSHOT_DIR = "/data/local/tmp/screenshots"
         val WRITE_TYPES = listOf(
             HeartRateRecord::class, StepsRecord::class, ActiveCaloriesBurnedRecord::class,

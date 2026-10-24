@@ -30,9 +30,17 @@ class Settings(val prefs: SharedPreferences) {
         get() = prefs.getLong(KEY_LAST_SUCCESS, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_SUCCESS, value).apply()
 
-    var lastError: String?
-        get() = prefs.getString(KEY_LAST_ERROR, null)
-        set(value) = prefs.edit().putString(KEY_LAST_ERROR, value).apply()
+    var lastError: SyncError?
+        get() {
+            val kind = prefs.getString(KEY_LAST_ERROR, null) ?: return null
+            // Unknown values (e.g. the free text stored by older versions) are dropped.
+            val known = SyncError.Kind.entries.find { it.name == kind } ?: return null
+            return SyncError(known, prefs.getString(KEY_LAST_ERROR_DETAIL, null))
+        }
+        set(value) = prefs.edit()
+            .putString(KEY_LAST_ERROR, value?.kind?.name)
+            .putString(KEY_LAST_ERROR_DETAIL, value?.detail)
+            .apply()
 
     var onboardingDone: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
@@ -45,6 +53,7 @@ class Settings(val prefs: SharedPreferences) {
         const val KEY_CHANGES_TYPES = "changes_types"
         const val KEY_LAST_SUCCESS = "last_success_ms"
         const val KEY_LAST_ERROR = "last_error"
+        const val KEY_LAST_ERROR_DETAIL = "last_error_detail"
         const val KEY_ONBOARDING_DONE = "onboarding_done"
     }
 }

@@ -6,6 +6,8 @@ Android app that reads your health data from [Health Connect](https://developer.
 
 Built for a Galaxy Watch + Samsung Health setup, but it works with any app that writes to Health Connect. Personal, sideloaded app: there is no Play Store listing.
 
+The app is in English and Brazilian Portuguese: it follows the phone's language, and on Android 13+ you can pick it per app in **Settings > System > Languages > App languages**.
+
 ## Screenshots
 
 <table>
@@ -20,7 +22,7 @@ First launch walks through five steps:
 <tr><td><img src="docs/screenshots/onboarding-1-welcome.png" width="180" alt="Welcome"></td><td><img src="docs/screenshots/onboarding-2-server.png" width="180" alt="Server"></td><td><img src="docs/screenshots/onboarding-3-permissions.png" width="180" alt="Permissions"></td><td><img src="docs/screenshots/onboarding-4-battery.png" width="180" alt="Battery"></td><td><img src="docs/screenshots/onboarding-5-history.png" width="180" alt="History"></td></tr>
 </table>
 
-Taken on an emulator by the integration test (see [Building](#building)) and refreshed on every push to `main`.
+Taken on an emulator by the integration test (see [Building](#building)) and refreshed on every push to `main`. The same set in Portuguese is in [docs/screenshots/pt-BR](docs/screenshots/pt-BR).
 
 ## Architecture
 
@@ -46,11 +48,11 @@ Galaxy Watch
 1. In Samsung Health: **Settings > Health Connect**, and allow Samsung Health to write the data types you want.
 2. Install the APK from [Releases](https://github.com/MateuxLucax/health-connect-bridge/releases) (allow installing from unknown sources).
 3. Open the app and follow the setup steps:
-   - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Testar conexão** sends an empty batch to check both.
-   - **Permissions**: tap **Conceder permissões** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
-   - **Battery**: tap **Desativar otimização de bateria**. One UI kills background work otherwise.
-   - **History**: optionally import older data, then tap **Concluir**.
-4. **Início** shows the last sync (or the last error), a **Sincronizar agora** button and the last value sent for each metric. **Configurações** has the server, history import, permissions and battery settings.
+   - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Test connection** sends an empty batch to check both.
+   - **Permissions**: tap **Grant permissions** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
+   - **Battery**: tap **Turn off battery optimization**. One UI kills background work otherwise.
+   - **History**: optionally import older data, then tap **Finish**.
+4. **Home** shows the last sync (or the last error), a **Sync now** button and the last value sent for each metric. **Settings** has the server, history import, permissions and battery settings.
 
 ## Metrics
 

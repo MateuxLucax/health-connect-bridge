@@ -9,11 +9,9 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.net.MalformedURLException
 
-/** Outcome of "Testar conexão"; [ok] is null while the request runs. */
-class TestResult(val ok: Boolean?, val message: String)
+/** Outcome of "Test connection": [ok] is null while the request runs; [error] is set when it failed. */
+class TestResult(val ok: Boolean?, val error: SyncError? = null)
 
 /** Runs the connection test and holds its last result. */
 class ConnectionTest(private val scope: CoroutineScope) {
@@ -21,7 +19,7 @@ class ConnectionTest(private val scope: CoroutineScope) {
         private set
 
     fun run(url: String, token: String) {
-        result = TestResult(null, "Testando conexão…")
+        result = TestResult(null)
         scope.launch { result = test(url.trim(), token.trim()) }
     }
 
@@ -31,17 +29,11 @@ class ConnectionTest(private val scope: CoroutineScope) {
 
     private suspend fun test(url: String, token: String): TestResult = try {
         Uploader.check(url, token)
-        TestResult(true, "Conexão OK: o servidor aceitou o token.")
+        TestResult(true)
     } catch (e: CancellationException) {
         throw e
-    } catch (e: HttpStatusException) {
-        TestResult(false, if (e.code == 401) "Token rejeitado pelo servidor (401)." else "O servidor respondeu ${e.message}")
-    } catch (e: MalformedURLException) {
-        TestResult(false, "URL inválida. Exemplo: http://192.168.0.10:8080")
-    } catch (e: IOException) {
-        TestResult(false, "Não foi possível conectar: ${e.message}")
     } catch (e: Exception) {
-        TestResult(false, "Erro: ${e.message}")
+        TestResult(false, SyncError.of(e))
     }
 }
 

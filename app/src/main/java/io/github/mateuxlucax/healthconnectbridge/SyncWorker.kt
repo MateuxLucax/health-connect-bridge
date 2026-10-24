@@ -15,7 +15,6 @@ import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Runs an incremental sync, or a backfill when [KEY_BACKFILL_DAYS] is set. */
@@ -43,32 +42,11 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 ListenableWorker.Result.success()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: HttpStatusException) {
-                when {
-                    e.code == 401 -> fail(settings, "Token rejeitado pelo servidor (401).")
-                    e.code < 500 -> fail(settings, "Servidor recusou os dados: ${e.message}")
-                    else -> retry(settings, "Erro no servidor: ${e.message}")
-                }
-            } catch (e: SetupException) {
-                fail(settings, e.message)
-            } catch (e: SecurityException) {
-                fail(settings, "Permissão negada pelo Health Connect: ${e.message}")
-            } catch (e: IOException) {
-                retry(settings, "Falha de comunicação: ${e.message}")
             } catch (e: Exception) {
-                // Health Connect throws IllegalStateException when rate limited, among others.
-                retry(settings, "${e.javaClass.simpleName}: ${e.message}")
+                val error = SyncError.of(e)
+                settings.lastError = error
+                if (error.kind.retry) ListenableWorker.Result.retry() else ListenableWorker.Result.failure()
             }
-
-        private fun fail(settings: Settings, message: String?): ListenableWorker.Result {
-            settings.lastError = message
-            return ListenableWorker.Result.failure()
-        }
-
-        private fun retry(settings: Settings, message: String?): ListenableWorker.Result {
-            settings.lastError = message
-            return ListenableWorker.Result.retry()
-        }
 
         private val networkConstraint =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()

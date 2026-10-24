@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -46,49 +47,50 @@ fun HomeScreen(settings: Settings, refreshKey: Int, onSyncNow: () -> Unit, modif
     val lastError = remember(refreshKey) { settings.lastError }
     val values = remember(refreshKey) { LastValues(settings.prefs).all() }
     val zone = ZoneId.systemDefault()
+    val format = rememberFormat()
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        SyncCard(lastSuccess, lastError, now, zone, onSyncNow)
-        ExportedValues(values, now, zone)
+        SyncCard(lastSuccess, lastError, now, zone, format, onSyncNow)
+        ExportedValues(values, now, zone, format)
     }
 }
 
 @Composable
-private fun SyncCard(lastSuccess: Long, lastError: String?, now: Long, zone: ZoneId, onSyncNow: () -> Unit) {
+private fun SyncCard(lastSuccess: Long, lastError: SyncError?, now: Long, zone: ZoneId, format: Format, onSyncNow: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column {
                 Text(
-                    "Última sincronização",
+                    stringResource(R.string.last_sync),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (lastSuccess == 0L) {
-                    Text("Nunca", style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.never), style = MaterialTheme.typography.headlineSmall)
                 } else {
                     Text(
-                        Format.relative(lastSuccess, now).replaceFirstChar { it.uppercase() },
+                        format.relative(lastSuccess, now),
                         style = MaterialTheme.typography.headlineSmall,
                     )
                     Text(
-                        Format.dateTime(lastSuccess, zone),
+                        format.dateTime(lastSuccess, zone),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             when {
-                lastError != null -> ErrorBox(lastError)
-                lastSuccess > 0 -> StatusLine(true, "Tudo certo: os dados chegaram ao servidor.")
-                else -> StatusLine(null, "Os dados são enviados automaticamente a cada 15 minutos.")
+                lastError != null -> ErrorBox(lastError.message(rememberStrings()))
+                lastSuccess > 0 -> StatusLine(true, stringResource(R.string.status_ok))
+                else -> StatusLine(null, stringResource(R.string.status_auto))
             }
             Button(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
                 Icon(painterResource(R.drawable.ic_sync), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Sincronizar agora")
+                Text(stringResource(R.string.sync_now))
             }
         }
     }
@@ -103,10 +105,10 @@ private fun ErrorBox(message: String) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(16.dp)) {
-            Icon(painterResource(R.drawable.ic_error), contentDescription = "Erro")
+            Icon(painterResource(R.drawable.ic_error), contentDescription = stringResource(R.string.cd_error))
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("A última tentativa falhou", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.error_title), style = MaterialTheme.typography.titleSmall)
                 Text(message, style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -114,9 +116,9 @@ private fun ErrorBox(message: String) {
 }
 
 @Composable
-private fun ExportedValues(values: List<LastValue>, now: Long, zone: ZoneId) {
+private fun ExportedValues(values: List<LastValue>, now: Long, zone: ZoneId, format: Format) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Dados exportados", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.exported_data), style = MaterialTheme.typography.titleLarge)
         if (values.isEmpty()) {
             EmptyState()
             return@Column
@@ -124,12 +126,12 @@ private fun ExportedValues(values: List<LastValue>, now: Long, zone: ZoneId) {
         Category.entries.forEach { category ->
             val rows = DATA_TYPES.filter { it.category == category }.flatMap { type ->
                 type.metrics.flatMap { metric ->
-                    values.filter { it.metric == metric }.map { displayName(type, it) to (type to it) }.sortedBy { it.first }
+                    values.filter { it.metric == metric }.map { format.name(type, it) to (type to it) }.sortedBy { it.first }
                 }
             }
             if (rows.isEmpty()) return@forEach
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(category.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(category.title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Card(Modifier.fillMaxWidth()) {
                     rows.forEachIndexed { i, (name, typeAndValue) ->
                         val (type, value) = typeAndValue
@@ -137,9 +139,9 @@ private fun ExportedValues(values: List<LastValue>, now: Long, zone: ZoneId) {
                         IconRow(
                             type.icon,
                             name,
-                            Format.time(value.timestampMs, now, zone),
+                            format.time(value.timestampMs, now, zone),
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            trailing = Format.value(value.metric, value.value),
+                            trailing = format.value(value.metric, value.value),
                         )
                     }
                 }
@@ -156,9 +158,9 @@ private fun EmptyState() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Nada exportado ainda", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.empty_title), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Os últimos valores enviados ao servidor aparecem aqui depois da primeira sincronização.",
+                stringResource(R.string.empty_text),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

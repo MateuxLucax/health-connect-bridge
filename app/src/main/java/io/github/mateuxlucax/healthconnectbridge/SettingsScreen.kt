@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -35,40 +36,37 @@ fun SettingsScreen(settings: Settings, status: DeviceStatus?, actions: AppAction
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SectionCard("Servidor") {
+        SectionCard(stringResource(R.string.section_server)) {
             ServerFields(url, { url = it; test.clear() }, token, { token = it; test.clear() })
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = { test.run(url, token) }, enabled = filled, modifier = Modifier.weight(1f)) {
-                    Text("Testar conexão")
+                    Text(stringResource(R.string.test_connection))
                 }
                 Button(
                     onClick = {
                         settings.serverUrl = url.trim()
                         settings.token = token.trim()
-                        Toast.makeText(context, "Configurações salvas", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
                     },
                     enabled = filled,
                     modifier = Modifier.weight(1f),
-                ) { Text("Salvar") }
+                ) { Text(stringResource(R.string.save)) }
             }
             TestResultLine(test.result)
         }
 
-        SectionCard("Importar histórico") {
-            BodyText(
-                "Lê de novo os últimos dias do Health Connect e envia ao servidor. O Prometheus só aceita " +
-                    "dados dentro da janela de dados fora de ordem (30 dias na configuração padrão do exporter)."
-            )
+        SectionCard(stringResource(R.string.section_history)) {
+            BodyText(stringResource(R.string.history_settings_text))
             HistoryImport { SyncWorker.backfill(context, it) }
         }
 
-        SectionCard("Permissões e bateria") {
+        SectionCard(stringResource(R.string.section_permissions)) {
             PermissionState(status, actions.requestHealthPermissions)
             BatteryState(status, actions.requestBatteryExemption)
         }
 
         Text(
-            "Versão ${BuildConfig.VERSION_NAME}",
+            stringResource(R.string.version, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

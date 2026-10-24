@@ -1,5 +1,170 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- English (default). Every key here must also exist in values-pt-rBR/strings.xml (checked by TranslationsTest). -->
 <resources>
-    <string name="app_name" translatable="false">Health Connect Bridge</string>
-    <string name="privacy_text">Política de privacidade\n\nO Health Connect Bridge lê os dados de saúde que você autorizar no Health Connect (frequência cardíaca, passos, calorias, sono, exercícios e outros) e os envia somente para o servidor que você configurar no app.\n\nNenhum dado é enviado a terceiros, e o app não coleta estatísticas de uso. Você pode revogar as permissões a qualquer momento nas configurações do Health Connect.</string>
+    <string name="app_name">Health Connect Bridge</string>
+    <string name="privacy_text">Privacy policy\n\nHealth Connect Bridge reads the health data you allow in Health Connect (heart rate, steps, calories, sleep, exercise and more) and sends it only to the server you set up in the app.\n\nNo data is sent to third parties, and the app collects no usage statistics. You can revoke the permissions at any time in the Health Connect settings.</string>
+
+    <!-- Navigation and home -->
+    <string name="tab_home">Home</string>
+    <string name="tab_settings">Settings</string>
+    <string name="sync_started">Sync started</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="last_sync">Last sync</string>
+    <string name="never">Never</string>
+    <string name="status_ok">All good: the data reached the server.</string>
+    <string name="status_auto">Data is sent automatically every 15 minutes.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="error_title">The last attempt failed</string>
+    <string name="cd_error">Error</string>
+    <string name="cd_ok">OK</string>
+    <string name="exported_data">Exported data</string>
+    <string name="empty_title">Nothing exported yet</string>
+    <string name="empty_text">The last values sent to the server show up here after the first sync.</string>
+
+    <!-- Settings -->
+    <string name="section_server">Server</string>
+    <string name="test_connection">Test connection</string>
+    <string name="save">Save</string>
+    <string name="section_history">Import history</string>
+    <string name="history_settings_text">Reads the last days from Health Connect again and sends them to the server. Prometheus only accepts data within its out-of-order window (30 days in the exporter’s default configuration).</string>
+    <string name="section_permissions">Permissions and battery</string>
+    <string name="version">Version %1$s</string>
+
+    <!-- Onboarding -->
+    <string name="step_of">Step %1$d of %2$d</string>
+    <string name="back">Back</string>
+    <string name="next">Next</string>
+    <string name="skip">Skip</string>
+    <string name="finish">Finish</string>
+    <string name="welcome_title">Welcome</string>
+    <string name="welcome_text">This app reads your health data from Health Connect (heart rate, steps, sleep, weight and more) and sends it to your own server every 15 minutes.</string>
+    <string name="your_server">Your server</string>
+    <string name="prometheus_grafana">Prometheus and Grafana</string>
+    <string name="welcome_server_text">The server (health-connect-prometheus-exporter) writes the data to Prometheus, and you follow everything in Grafana charts.</string>
+    <string name="welcome_privacy_text">Your data goes only to the server you set up. Nothing is sent to third parties.</string>
+    <string name="server_text">Enter the address of health-connect-prometheus-exporter and the token configured on it. On a home network, something like http://192.168.0.10:8080.</string>
+    <string name="permissions_title">Permissions</string>
+    <string name="permissions_text">The app only reads from Health Connect, it never writes. Grant access to the data you want to export, and also allow background and history access for automatic sync.</string>
+    <string name="what_app_reads">What the app reads</string>
+    <string name="battery_title">Battery</string>
+    <string name="battery_text">On Galaxy (One UI) and other phones, battery optimization puts apps to sleep and can cancel the background sync.</string>
+    <string name="battery_text_2">Turn off optimization for this app only, so the data reaches the server even with the screen off. The cost is small: each sync takes a few seconds.</string>
+    <string name="battery_skip_text">If you prefer, skip this step and do it later in Settings.</string>
+    <string name="history_text">Automatic sync sends the last 7 days and everything that arrives afterwards. To send older data, import the history: the app reads the last days from Health Connect again and sends them to the server.</string>
+    <string name="history_text_2">Prometheus only accepts data within its out-of-order window, which is 30 days in the exporter’s default configuration. Older data is rejected.</string>
+    <string name="history_text_3">You can also import later, in Settings. Tap Finish to start using the app.</string>
+
+    <!-- Shared components -->
+    <string name="server_url">Server URL</string>
+    <string name="token">Token</string>
+    <string name="show_token">Show token</string>
+    <string name="hide_token">Hide token</string>
+    <string name="days">Days</string>
+    <string name="import_history">Import</string>
+    <string name="import_scheduled">Import scheduled. It runs in the background; the result shows up on Home.</string>
+    <string name="hc_update_required">Update Health Connect to continue.</string>
+    <string name="hc_unavailable">Health Connect is not available on this device.</string>
+    <plurals name="permissions_all">
+        <item quantity="one">%d permission granted.</item>
+        <item quantity="other">All %d permissions granted.</item>
+    </plurals>
+    <string name="permissions_none">No permissions granted yet.</string>
+    <plurals name="permissions_some">
+        <item quantity="one">%1$d of %2$d permission granted.</item>
+        <item quantity="other">%1$d of %2$d permissions granted.</item>
+    </plurals>
+    <string name="grant_permissions">Grant permissions</string>
+    <string name="battery_exempt">Battery optimization is off for the app.</string>
+    <string name="battery_optimized">Battery optimization is on: the system may stop the sync.</string>
+    <string name="battery_disable">Turn off battery optimization</string>
+    <string name="test_running">Testing connection…</string>
+    <string name="test_ok">Connection OK: the server accepted the token.</string>
+
+    <!-- Sync errors (SyncError.Kind) -->
+    <string name="error_unauthorized">Token rejected by server (401).</string>
+    <string name="error_rejected">Server rejected the data: %1$s</string>
+    <string name="error_server">Server error: %1$s</string>
+    <string name="error_not_configured">Set the server URL and token.</string>
+    <string name="error_invalid_url">Invalid URL. Example: http://192.168.0.10:8080</string>
+    <string name="error_no_permissions">No Health Connect read permission granted.</string>
+    <string name="error_health_connect_unavailable">Health Connect is not available on this device.</string>
+    <string name="error_permission_denied">Permission denied by Health Connect: %1$s</string>
+    <string name="error_network">Network error: %1$s</string>
+    <string name="error_other">Error: %1$s</string>
+
+    <!-- Data types (Catalog.kt) -->
+    <string name="category_heart">Heart</string>
+    <string name="category_activity">Activity</string>
+    <string name="category_sleep">Sleep</string>
+    <string name="category_body">Body</string>
+    <string name="type_heart_rate">Heart rate</string>
+    <string name="type_heart_rate_desc">Beats per minute measured throughout the day</string>
+    <string name="type_resting_heart_rate">Resting heart rate</string>
+    <string name="type_resting_heart_rate_desc">Beats per minute at rest</string>
+    <string name="type_hrv">Heart rate variability</string>
+    <string name="type_hrv_desc">Variation between beats (RMSSD)</string>
+    <string name="type_oxygen">Blood oxygen</string>
+    <string name="type_oxygen_desc">Oxygen saturation (SpO₂)</string>
+    <string name="type_respiratory_rate">Respiratory rate</string>
+    <string name="type_respiratory_rate_desc">Breaths per minute</string>
+    <string name="type_steps">Steps</string>
+    <string name="type_steps_desc">Steps counted by the watch or phone</string>
+    <string name="type_distance">Distance</string>
+    <string name="type_distance_desc">Distance covered</string>
+    <string name="type_active_calories">Active calories</string>
+    <string name="type_active_calories_desc">Calories burned in activity</string>
+    <string name="type_total_calories">Total calories</string>
+    <string name="type_total_calories_desc">Calories burned in total, including at rest</string>
+    <string name="type_exercise">Exercise</string>
+    <string name="type_exercise_desc">Type and duration of each workout</string>
+    <string name="type_vo2_max">VO₂ max</string>
+    <string name="type_vo2_max_desc">Estimated aerobic capacity</string>
+    <string name="type_sleep">Sleep</string>
+    <string name="type_sleep_desc">Sleep duration and each stage</string>
+    <string name="type_weight">Weight</string>
+    <string name="type_weight_desc">Body weight</string>
+    <string name="type_body_fat">Body fat</string>
+    <string name="type_body_fat_desc">Fat percentage</string>
+    <string name="type_skin_temperature">Skin temperature</string>
+    <string name="type_skin_temperature_desc">Variation from your baseline</string>
+    <string name="sleep_total">Total sleep</string>
+    <string name="sleep_awake">Awake</string>
+    <string name="sleep_sleeping">Sleeping</string>
+    <string name="sleep_out_of_bed">Out of bed</string>
+    <string name="sleep_light">Light sleep</string>
+    <string name="sleep_deep">Deep sleep</string>
+    <string name="sleep_rem">REM sleep</string>
+    <string name="sleep_awake_in_bed">Awake in bed</string>
+    <string name="sleep_unknown">Sleep (unknown stage)</string>
+    <string name="sleep_other">Sleep: %1$s</string>
+    <string name="exercise_name">Exercise: %1$s</string>
+    <string name="exercise_running">running</string>
+    <string name="exercise_walking">walking</string>
+    <string name="exercise_biking">cycling</string>
+    <string name="exercise_swimming_pool">swimming</string>
+    <string name="exercise_strength_training">strength training</string>
+    <string name="exercise_yoga">yoga</string>
+    <string name="exercise_hiking">hiking</string>
+    <string name="exercise_other_workout">other</string>
+
+    <!-- Formatting (Format.kt). Patterns use java.time DateTimeFormatter syntax. -->
+    <string name="pattern_day_month">MMM d</string>
+    <string name="pattern_date">MMM d, yyyy</string>
+    <string name="time_today">Today at %1$s</string>
+    <string name="time_yesterday">Yesterday at %1$s</string>
+    <string name="time_on_date">%1$s at %2$s</string>
+    <string name="relative_now">Just now</string>
+    <string name="relative_minutes">%d min ago</string>
+    <string name="relative_hours">%d h ago</string>
+    <plurals name="relative_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <string name="duration_minutes">%d min</string>
+    <string name="duration_hours">%1$dh %2$02dm</string>
+    <string name="unit_breaths_per_minute">%1$s breaths/min</string>
+    <plurals name="unit_steps">
+        <item quantity="one">%s step</item>
+        <item quantity="other">%s steps</item>
+    </plurals>
 </resources>

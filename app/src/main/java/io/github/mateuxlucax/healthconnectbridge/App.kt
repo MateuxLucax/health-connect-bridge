@@ -72,13 +72,13 @@ private fun MainScreen(settings: Settings, status: DeviceStatus?, refreshKey: In
                     selected = tab == 0,
                     onClick = { tab = 0 },
                     icon = { Icon(painterResource(R.drawable.ic_home), contentDescription = null) },
-                    label = { Text("Início") },
+                    label = { Text(stringResource(R.string.tab_home)) },
                 )
                 NavigationBarItem(
                     selected = tab == 1,
                     onClick = { tab = 1 },
                     icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
-                    label = { Text("Configurações") },
+                    label = { Text(stringResource(R.string.tab_settings)) },
                 )
             }
         },
@@ -87,7 +87,7 @@ private fun MainScreen(settings: Settings, status: DeviceStatus?, refreshKey: In
         if (tab == 0) {
             HomeScreen(settings, refreshKey, onSyncNow = {
                 SyncWorker.syncNow(context)
-                Toast.makeText(context, "Sincronização iniciada", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.sync_started, Toast.LENGTH_SHORT).show()
             }, modifier)
         } else {
             SettingsScreen(settings, status, actions, modifier)

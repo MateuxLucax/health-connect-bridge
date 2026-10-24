@@ -4,7 +4,6 @@ import androidx.work.ListenableWorker
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,9 +36,9 @@ class SyncWorkerTest {
 
     @Test
     fun setupErrorFails() {
-        val result = runWith { throw SetupException("no permissions") }
+        val result = runWith { throw SetupException(SyncError.Kind.NO_PERMISSIONS) }
         assertTrue(result is ListenableWorker.Result.Failure)
-        assertNotNull(settings.lastError)
+        assertEquals(SyncError(SyncError.Kind.NO_PERMISSIONS), settings.lastError)
     }
 
     @Test
@@ -47,7 +46,9 @@ class SyncWorkerTest {
         server.status = { 401 }
         val result = runWith(uploadOne)
         assertTrue(result is ListenableWorker.Result.Failure)
-        assertNotNull(settings.lastError)
+        assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError)
+        assertEquals("Token rejected by server (401).", settings.lastError!!.message(XmlStrings.of(XmlStrings.ENGLISH)))
+        assertEquals("Token rejeitado pelo servidor (401).", settings.lastError!!.message(XmlStrings.of(XmlStrings.PORTUGUESE)))
         assertEquals(0L, settings.lastSuccessMs)
     }
 
@@ -56,7 +57,8 @@ class SyncWorkerTest {
         server.status = { 400 }
         val result = runWith(uploadOne)
         assertTrue(result is ListenableWorker.Result.Failure)
-        assertNotNull(settings.lastError)
+        assertEquals(SyncError.Kind.REJECTED, settings.lastError?.kind)
+        assertTrue(settings.lastError!!.detail!!.startsWith("HTTP 400"))
     }
 
     @Test
@@ -64,7 +66,7 @@ class SyncWorkerTest {
         server.status = { 503 }
         val result = runWith(uploadOne)
         assertTrue(result is ListenableWorker.Result.Retry)
-        assertNotNull(settings.lastError)
+        assertEquals(SyncError.Kind.SERVER, settings.lastError?.kind)
     }
 
     @Test
@@ -74,6 +76,14 @@ class SyncWorkerTest {
             Uploader.upload("http://127.0.0.1:$closedPort", "t", listOf(Sample("m", mapOf("source" to "a"), 1, 1L)))
         }
         assertTrue(result is ListenableWorker.Result.Retry)
-        assertNotNull(settings.lastError)
+        assertEquals(SyncError.Kind.NETWORK, settings.lastError?.kind)
+    }
+
+    @Test
+    fun errorSurvivesStorage() {
+        settings.lastError = SyncError(SyncError.Kind.SERVER, "HTTP 502")
+        assertEquals(SyncError(SyncError.Kind.SERVER, "HTTP 502"), settings.lastError)
+        settings.prefs.edit().putString("last_error", "Texto livre de uma versão antiga").apply()
+        assertNull(settings.lastError)
     }
 }

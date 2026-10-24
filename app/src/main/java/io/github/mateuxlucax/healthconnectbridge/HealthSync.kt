@@ -14,9 +14,6 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.reflect.KClass
 
-/** Problem the user must fix in the app (settings, permissions); retrying won't help. */
-class SetupException(message: String) : Exception(message)
-
 /** Reads Health Connect and uploads mapped samples to the exporter. */
 class HealthSync(
     private val settings: Settings,
@@ -102,7 +99,7 @@ class HealthSync(
 
     private fun client(): HealthConnectClient {
         if (settings.serverUrl.isBlank() || settings.token.isBlank()) {
-            throw SetupException("Configure a URL do servidor e o token.")
+            throw SetupException(SyncError.Kind.NOT_CONFIGURED)
         }
         return clientFactory()
     }
@@ -110,7 +107,7 @@ class HealthSync(
     private suspend fun readableTypes(client: HealthConnectClient): List<KClass<out Record>> {
         val granted = client.permissionController.getGrantedPermissions()
         val types = supportedTypes(client).filter { HealthPermission.getReadPermission(it) in granted }
-        if (types.isEmpty()) throw SetupException("Nenhuma permissão de leitura do Health Connect concedida.")
+        if (types.isEmpty()) throw SetupException(SyncError.Kind.NO_PERMISSIONS)
         return types
     }
 
@@ -120,7 +117,7 @@ class HealthSync(
 
         private fun defaultClient(context: Context): HealthConnectClient {
             if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
-                throw SetupException("Health Connect indisponível neste aparelho.")
+                throw SetupException(SyncError.Kind.HEALTH_CONNECT_UNAVAILABLE)
             }
             return HealthConnectClient.getOrCreate(context)
         }

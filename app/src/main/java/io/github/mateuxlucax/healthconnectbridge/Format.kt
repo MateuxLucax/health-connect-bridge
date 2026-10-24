@@ -1,39 +1,43 @@
 package io.github.mateuxlucax.healthconnectbridge
 
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.time.format.FormatStyle
 import kotlin.math.roundToLong
 
-/** pt-BR display formatting for values and times. */
-object Format {
-    private val locale: Locale = Locale.forLanguageTag("pt-BR")
-    private val time = DateTimeFormatter.ofPattern("HH:mm", locale)
-    private val dayMonth = DateTimeFormatter.ofPattern("dd/MM", locale)
-    private val fullDate = DateTimeFormatter.ofPattern("dd/MM/yyyy", locale)
+/** Display formatting for values, names and times, in the language and locale of [strings]. */
+class Format(private val strings: Strings) {
+    private val locale = strings.locale
+    private val clock = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+    private val dayMonth = DateTimeFormatter.ofPattern(strings.get(R.string.pattern_day_month), locale)
+    private val fullDate = DateTimeFormatter.ofPattern(strings.get(R.string.pattern_date), locale)
 
-    fun number(value: Double, maxDecimals: Int = 1): String {
-        val pattern = if (maxDecimals == 0) "#,##0" else "#,##0." + "#".repeat(maxDecimals)
-        return DecimalFormat(pattern, DecimalFormatSymbols(locale)).format(value)
-    }
+    fun number(value: Double, maxDecimals: Int = 1): String =
+        NumberFormat.getNumberInstance(locale).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = maxDecimals
+        }.format(value)
 
-    /** "45 min", "1h32", "7h00". */
+    /** "45 min", "1h 32m" / "1h32". */
     fun duration(seconds: Double): String {
         val minutes = (seconds / 60).roundToLong()
-        return if (minutes < 60) "$minutes min" else String.format(locale, "%dh%02d", minutes / 60, minutes % 60)
+        return if (minutes < 60) {
+            strings.get(R.string.duration_minutes, minutes)
+        } else {
+            strings.get(R.string.duration_hours, minutes / 60, minutes % 60)
+        }
     }
 
-    /** Value of [metric] with its unit, e.g. "72 bpm", "8.421 passos". */
+    /** Value of [metric] with its unit, e.g. "72 bpm", "8,421 steps" / "8.421 passos". Unit symbols aren't translated. */
     fun value(metric: String, value: Double): String = when (metric) {
         "health_heart_rate_bpm", "health_resting_heart_rate_bpm" -> "${number(value, 0)} bpm"
         "health_heart_rate_variability_rmssd_ms" -> "${number(value, 0)} ms"
         "health_oxygen_saturation_percent", "health_body_fat_percent" -> "${number(value)}%"
-        "health_respiratory_rate_breaths_per_minute" -> "${number(value)} resp/min"
+        "health_respiratory_rate_breaths_per_minute" -> strings.get(R.string.unit_breaths_per_minute, number(value))
         "health_skin_temperature_delta_celsius" -> (if (value > 0) "+" else "") + "${number(value)} °C"
-        "health_steps" -> number(value, 0) + if (value == 1.0) " passo" else " passos"
+        "health_steps" -> strings.plural(R.plurals.unit_steps, value.toInt(), number(value, 0))
         "health_distance_meters" ->
             if (value < 1000) "${number(value, 0)} m" else "${number(value / 1000, 2)} km"
         "health_active_calories_kcal", "health_total_calories_kcal" -> "${number(value)} kcal"
@@ -44,34 +48,70 @@ object Format {
         else -> number(value)
     }
 
-    /** "hoje às 14:32", "ontem às 09:05", "22/10 às 14:32", or with the year when it differs. */
+    /** Name of an exported value, e.g. "Deep sleep" or "Exercise: running". */
+    fun name(type: DataType, value: LastValue): String = when (value.metric) {
+        "health_sleep_session_seconds" -> strings.get(R.string.sleep_total)
+        "health_sleep_stage_seconds" ->
+            SLEEP_STAGES[value.label]?.let { strings.get(it) } ?: strings.get(R.string.sleep_other, value.label.orEmpty())
+        "health_exercise_session_seconds" -> strings.get(
+            R.string.exercise_name,
+            EXERCISES[value.label]?.let { strings.get(it) } ?: value.label.orEmpty().replace('_', ' '),
+        )
+        else -> strings.get(type.name)
+    }
+
+    /** "Today at 2:32 PM" / "hoje às 14:32", yesterday, a day this year, or a full date. */
     fun time(ms: Long, nowMs: Long, zone: ZoneId): String {
         val at = Instant.ofEpochMilli(ms).atZone(zone)
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
-        val day = when {
-            at.toLocalDate() == today -> "hoje"
-            at.toLocalDate() == today.minusDays(1) -> "ontem"
-            at.year == today.year -> dayMonth.format(at)
-            else -> fullDate.format(at)
+        val clockText = clock.format(at)
+        return when {
+            at.toLocalDate() == today -> strings.get(R.string.time_today, clockText)
+            at.toLocalDate() == today.minusDays(1) -> strings.get(R.string.time_yesterday, clockText)
+            at.year == today.year -> strings.get(R.string.time_on_date, dayMonth.format(at), clockText)
+            else -> strings.get(R.string.time_on_date, fullDate.format(at), clockText)
         }
-        return "$day às ${time.format(at)}"
     }
 
-    /** "24/10/2026 às 14:32". */
+    /** "Oct 24, 2026 at 2:32 PM" / "24/10/2026 às 14:32". */
     fun dateTime(ms: Long, zone: ZoneId): String {
         val at = Instant.ofEpochMilli(ms).atZone(zone)
-        return "${fullDate.format(at)} às ${time.format(at)}"
+        return strings.get(R.string.time_on_date, fullDate.format(at), clock.format(at))
     }
 
-    /** "agora mesmo", "há 5 min", "há 3 h", "há 2 dias". */
+    /** "Just now", "5 min ago", "3 h ago", "2 days ago" (localized). */
     fun relative(ms: Long, nowMs: Long): String {
         val minutes = (nowMs - ms) / 60_000
+        val days = minutes / (24 * 60)
         return when {
-            minutes < 1 -> "agora mesmo"
-            minutes < 60 -> "há $minutes min"
-            minutes < 24 * 60 -> "há ${minutes / 60} h"
-            minutes < 48 * 60 -> "há 1 dia"
-            else -> "há ${minutes / (24 * 60)} dias"
+            minutes < 1 -> strings.get(R.string.relative_now)
+            minutes < 60 -> strings.get(R.string.relative_minutes, minutes)
+            minutes < 24 * 60 -> strings.get(R.string.relative_hours, minutes / 60)
+            else -> strings.plural(R.plurals.relative_days, days.toInt(), days)
         }
+    }
+
+    private companion object {
+        val SLEEP_STAGES = mapOf(
+            "awake" to R.string.sleep_awake,
+            "sleeping" to R.string.sleep_sleeping,
+            "out_of_bed" to R.string.sleep_out_of_bed,
+            "light" to R.string.sleep_light,
+            "deep" to R.string.sleep_deep,
+            "rem" to R.string.sleep_rem,
+            "awake_in_bed" to R.string.sleep_awake_in_bed,
+            "unknown" to R.string.sleep_unknown,
+        )
+
+        val EXERCISES = mapOf(
+            "running" to R.string.exercise_running,
+            "walking" to R.string.exercise_walking,
+            "biking" to R.string.exercise_biking,
+            "swimming_pool" to R.string.exercise_swimming_pool,
+            "strength_training" to R.string.exercise_strength_training,
+            "yoga" to R.string.exercise_yoga,
+            "hiking" to R.string.exercise_hiking,
+            "other_workout" to R.string.exercise_other_workout,
+        )
     }
 }

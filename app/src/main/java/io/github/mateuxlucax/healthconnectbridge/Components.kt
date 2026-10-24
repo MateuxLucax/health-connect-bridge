@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -35,7 +36,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -43,6 +48,20 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
+
+/** Strings in the current configuration's language. */
+@Composable
+fun rememberStrings(): Strings {
+    val resources = LocalResources.current
+    val configuration = LocalConfiguration.current
+    return remember(resources, configuration) { ResourceStrings(resources) }
+}
+
+@Composable
+fun rememberFormat(): Format {
+    val strings = rememberStrings()
+    return remember(strings) { Format(strings) }
+}
 
 /** The launcher icon: its foreground on the navy background. */
 @Composable
@@ -100,8 +119,8 @@ fun IconRow(@DrawableRes icon: Int, title: String, subtitle: String?, modifier: 
 fun StatusLine(ok: Boolean?, text: String, busy: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         when {
-            ok == true -> Icon(painterResource(R.drawable.ic_check_circle), "OK", tint = MaterialTheme.colorScheme.primary)
-            ok == false -> Icon(painterResource(R.drawable.ic_error), "Erro", tint = MaterialTheme.colorScheme.error)
+            ok == true -> Icon(painterResource(R.drawable.ic_check_circle), stringResource(R.string.cd_ok), tint = MaterialTheme.colorScheme.primary)
+            ok == false -> Icon(painterResource(R.drawable.ic_error), stringResource(R.string.cd_error), tint = MaterialTheme.colorScheme.error)
             busy -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
         }
         if (ok != null || busy) Spacer(Modifier.width(12.dp))
@@ -115,7 +134,13 @@ fun StatusLine(ok: Boolean?, text: String, busy: Boolean = false) {
 
 @Composable
 fun TestResultLine(result: TestResult?) {
-    if (result != null) StatusLine(result.ok, result.message, busy = result.ok == null)
+    if (result == null) return
+    val text = when (result.ok) {
+        null -> stringResource(R.string.test_running)
+        true -> stringResource(R.string.test_ok)
+        false -> result.error?.message(rememberStrings()).orEmpty()
+    }
+    StatusLine(result.ok, text, busy = result.ok == null)
 }
 
 @Composable
@@ -125,7 +150,7 @@ fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTo
         OutlinedTextField(
             value = url,
             onValueChange = onUrlChange,
-            label = { Text("URL do servidor") },
+            label = { Text(stringResource(R.string.server_url)) },
             placeholder = { Text("http://192.168.0.10:8080") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
@@ -134,7 +159,7 @@ fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTo
         OutlinedTextField(
             value = token,
             onValueChange = onTokenChange,
-            label = { Text("Token") },
+            label = { Text(stringResource(R.string.token)) },
             singleLine = true,
             visualTransformation = if (showToken) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
@@ -142,7 +167,7 @@ fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTo
                 IconButton(onClick = { showToken = !showToken }) {
                     Icon(
                         painterResource(if (showToken) R.drawable.ic_visibility_off else R.drawable.ic_visibility),
-                        contentDescription = if (showToken) "Ocultar token" else "Mostrar token",
+                        contentDescription = stringResource(if (showToken) R.string.hide_token else R.string.show_token),
                     )
                 }
             },
@@ -162,7 +187,7 @@ fun HistoryImport(onImport: (Int) -> Unit) {
             OutlinedTextField(
                 value = days,
                 onValueChange = { days = it.filter(Char::isDigit).take(4); scheduled = false },
-                label = { Text("Dias") },
+                label = { Text(stringResource(R.string.days)) },
                 singleLine = true,
                 isError = parsed == null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
@@ -170,11 +195,11 @@ fun HistoryImport(onImport: (Int) -> Unit) {
             )
             Spacer(Modifier.width(16.dp))
             Button(onClick = { onImport(parsed!!); scheduled = true }, enabled = parsed != null) {
-                Text("Importar")
+                Text(stringResource(R.string.import_history))
             }
         }
         if (scheduled) {
-            StatusLine(true, "Importação agendada. Ela roda em segundo plano; o resultado aparece em Início.")
+            StatusLine(true, stringResource(R.string.import_scheduled))
         }
     }
 }
@@ -187,19 +212,22 @@ fun PermissionState(status: DeviceStatus?, onRequest: () -> Unit) {
         !status.healthConnectAvailable -> StatusLine(
             false,
             if (status.healthConnect == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-                "Atualize o Health Connect para continuar."
+                stringResource(R.string.hc_update_required)
             } else {
-                "O Health Connect não está disponível neste aparelho."
+                stringResource(R.string.hc_unavailable)
             },
         )
         else -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             when (status.granted) {
-                status.requested -> StatusLine(true, "Todas as ${status.requested} permissões concedidas.")
-                0 -> StatusLine(null, "Nenhuma permissão concedida ainda.")
-                else -> StatusLine(null, "${status.granted} de ${status.requested} permissões concedidas.")
+                status.requested -> StatusLine(true, pluralStringResource(R.plurals.permissions_all, status.requested, status.requested))
+                0 -> StatusLine(null, stringResource(R.string.permissions_none))
+                else -> StatusLine(
+                    null,
+                    pluralStringResource(R.plurals.permissions_some, status.requested, status.granted, status.requested),
+                )
             }
             if (status.granted < status.requested) {
-                Button(onClick = onRequest, modifier = Modifier.fillMaxWidth()) { Text("Conceder permissões") }
+                Button(onClick = onRequest, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.grant_permissions)) }
             }
         }
     }
@@ -209,10 +237,10 @@ fun PermissionState(status: DeviceStatus?, onRequest: () -> Unit) {
 fun BatteryState(status: DeviceStatus?, onRequest: () -> Unit) {
     when {
         status == null -> Unit
-        status.batteryExempt -> StatusLine(true, "Otimização de bateria desativada para o app.")
+        status.batteryExempt -> StatusLine(true, stringResource(R.string.battery_exempt))
         else -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            StatusLine(null, "A otimização de bateria está ativa: o sistema pode interromper a sincronização.")
-            Button(onClick = onRequest, modifier = Modifier.fillMaxWidth()) { Text("Desativar otimização de bateria") }
+            StatusLine(null, stringResource(R.string.battery_optimized))
+            Button(onClick = onRequest, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.battery_disable)) }
         }
     }
 }

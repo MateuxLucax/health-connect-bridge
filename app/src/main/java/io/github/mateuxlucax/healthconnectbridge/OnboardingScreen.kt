@@ -59,16 +59,16 @@ fun OnboardingScreen(settings: Settings, status: DeviceStatus?, actions: AppActi
         else -> true
     }
     val nextLabel = when (step) {
-        3 -> if (status?.batteryExempt == true) "Próximo" else "Pular"
-        STEPS - 1 -> "Concluir"
-        else -> "Próximo"
+        3 -> if (status?.batteryExempt == true) R.string.next else R.string.skip
+        STEPS - 1 -> R.string.finish
+        else -> R.string.next
     }
 
     Scaffold(
         bottomBar = {
             BottomButtons(
                 showBack = step > 0,
-                nextLabel = nextLabel,
+                nextLabel = stringResource(nextLabel),
                 nextEnabled = canContinue,
                 onBack = { step-- },
                 onNext = {
@@ -123,7 +123,7 @@ private fun Header(step: Int) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Passo ${step + 1} de $STEPS",
+            stringResource(R.string.step_of, step + 1, STEPS),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -140,7 +140,7 @@ private fun BottomButtons(showBack: Boolean, nextLabel: String, nextEnabled: Boo
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (showBack) TextButton(onClick = onBack) { Text("Voltar") }
+            if (showBack) TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
             Spacer(Modifier.weight(1f))
             Button(onClick = onNext, enabled = nextEnabled) { Text(nextLabel) }
         }
@@ -154,65 +154,54 @@ private fun StepTitle(text: String) {
 
 @Composable
 private fun WelcomeStep() {
-    StepTitle("Bem-vindo")
-    BodyText(
-        "Este app lê seus dados de saúde do Health Connect (frequência cardíaca, passos, sono, peso e mais) " +
-            "e envia para o seu próprio servidor, a cada 15 minutos."
-    )
+    StepTitle(stringResource(R.string.welcome_title))
+    BodyText(stringResource(R.string.welcome_text))
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier.fillMaxWidth().padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            listOf("Health Connect", "↓", "Seu servidor", "↓", "Prometheus e Grafana").forEach {
+            // "Health Connect" is a product name and the arrows are symbols: neither is translated.
+            listOf("Health Connect", "↓", stringResource(R.string.your_server), "↓", stringResource(R.string.prometheus_grafana)).forEach {
                 Text(it, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             }
         }
     }
-    BodyText(
-        "O servidor (health-connect-prometheus-exporter) grava os dados no Prometheus, " +
-            "e você acompanha tudo em gráficos no Grafana."
-    )
-    BodyText("Seus dados vão somente para o servidor que você configurar. Nada é enviado a terceiros.")
+    BodyText(stringResource(R.string.welcome_server_text))
+    BodyText(stringResource(R.string.welcome_privacy_text))
 }
 
 @Composable
 private fun ServerStep(url: String, onUrlChange: (String) -> Unit, token: String, onTokenChange: (String) -> Unit) {
     val test = rememberConnectionTest()
-    StepTitle("Seu servidor")
-    BodyText(
-        "Informe o endereço do health-connect-prometheus-exporter e o token configurado nele. " +
-            "Na rede de casa, algo como http://192.168.0.10:8080."
-    )
+    StepTitle(stringResource(R.string.your_server))
+    BodyText(stringResource(R.string.server_text))
     ServerFields(url, { onUrlChange(it); test.clear() }, token, { onTokenChange(it); test.clear() })
     OutlinedButton(
         onClick = { test.run(url, token) },
         enabled = url.isNotBlank() && token.isNotBlank(),
         modifier = Modifier.fillMaxWidth(),
-    ) { Text("Testar conexão") }
+    ) { Text(stringResource(R.string.test_connection)) }
     TestResultLine(test.result)
 }
 
 @Composable
 private fun PermissionsStep(status: DeviceStatus?, onRequest: () -> Unit) {
-    StepTitle("Permissões")
-    BodyText(
-        "O app só lê do Health Connect, nunca escreve. Conceda acesso aos dados que quiser exportar " +
-            "e permita também o acesso em segundo plano e ao histórico, para a sincronização automática."
-    )
+    StepTitle(stringResource(R.string.permissions_title))
+    BodyText(stringResource(R.string.permissions_text))
     PermissionState(status, onRequest)
-    Text("O que o app lê", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+    Text(stringResource(R.string.what_app_reads), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
     Category.entries.forEach { category ->
         Column {
             Text(
-                category.title,
+                stringResource(category.title),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
             DATA_TYPES.filter { it.category == category }.forEach {
-                IconRow(it.icon, it.name, it.description, Modifier.padding(vertical = 4.dp))
+                IconRow(it.icon, stringResource(it.name), stringResource(it.description), Modifier.padding(vertical = 4.dp))
             }
         }
     }
@@ -220,30 +209,18 @@ private fun PermissionsStep(status: DeviceStatus?, onRequest: () -> Unit) {
 
 @Composable
 private fun BatteryStep(status: DeviceStatus?, onRequest: () -> Unit) {
-    StepTitle("Bateria")
-    BodyText(
-        "No Galaxy (One UI) e em outros aparelhos, a otimização de bateria coloca apps em suspensão " +
-            "e pode cancelar a sincronização em segundo plano."
-    )
-    BodyText(
-        "Desative a otimização só para este app para os dados chegarem ao servidor mesmo com a tela desligada. " +
-            "O consumo é pequeno: cada sincronização leva poucos segundos."
-    )
+    StepTitle(stringResource(R.string.battery_title))
+    BodyText(stringResource(R.string.battery_text))
+    BodyText(stringResource(R.string.battery_text_2))
     BatteryState(status, onRequest)
-    BodyText("Se preferir, pule esta etapa e faça isso depois em Configurações.")
+    BodyText(stringResource(R.string.battery_skip_text))
 }
 
 @Composable
 private fun HistoryStep(onImport: (Int) -> Unit) {
-    StepTitle("Importar histórico")
-    BodyText(
-        "A sincronização automática envia os últimos 7 dias e tudo o que chegar depois. Para enviar dados " +
-            "mais antigos, importe o histórico: o app lê de novo os últimos dias do Health Connect e envia ao servidor."
-    )
-    BodyText(
-        "O Prometheus só aceita dados dentro da janela de dados fora de ordem, que é de 30 dias na configuração " +
-            "padrão do exporter. Dados mais antigos que isso são recusados."
-    )
+    StepTitle(stringResource(R.string.section_history))
+    BodyText(stringResource(R.string.history_text))
+    BodyText(stringResource(R.string.history_text_2))
     HistoryImport(onImport)
-    BodyText("Você também pode importar depois, em Configurações. Toque em Concluir para começar a usar o app.")
+    BodyText(stringResource(R.string.history_text_3))
 }
