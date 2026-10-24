@@ -38,6 +38,7 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.LocalNetworkState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.SectionCard
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SyncIntervalPicker
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
 import io.github.mateuxlucax.healthconnectbridge.ui.components.launchConnectionTest
 import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
@@ -88,6 +89,10 @@ fun SettingsScreen(
                 ) { Text(stringResource(R.string.save)) }
             }
             TestResultLine(state.testResult, actions.openAppSettings)
+        }
+
+        SectionCard(stringResource(R.string.section_auto_sync)) {
+            SyncIntervalPicker(state.syncIntervalMinutes, viewModel::setSyncInterval)
         }
 
         SectionCard(stringResource(R.string.section_history)) {

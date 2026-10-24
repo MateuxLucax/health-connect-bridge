@@ -10,11 +10,17 @@ import io.github.mateuxlucax.healthconnectbridge.ui.WhileUiSubscribed
 import io.github.mateuxlucax.healthconnectbridge.ui.components.SetupForm
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
-/** What the onboarding shows besides its form: the connection test result of the server step. */
-data class OnboardingUiState(val testResult: TestResult? = null)
+/**
+ * What the onboarding shows besides its form: the connection test result of the server step and the automatic
+ * sync interval of the history step.
+ */
+data class OnboardingUiState(
+    val testResult: TestResult? = null,
+    val syncIntervalMinutes: Int = SettingsStore.DEFAULT_SYNC_INTERVAL,
+)
 
 /**
  * State and actions of the five onboarding steps (welcome, server, permissions, battery, history). The current
@@ -33,9 +39,13 @@ class OnboardingViewModel(
     /** The server step's form and the history step's import. */
     val form = SetupForm(viewModelScope, settings, exporter, requestBackfill, localNetworkBlocked)
 
-    val uiState: StateFlow<OnboardingUiState> = form.testResult
-        .map { OnboardingUiState(it) }
-        .stateIn(viewModelScope, WhileUiSubscribed, OnboardingUiState(form.testResult.value))
+    val uiState: StateFlow<OnboardingUiState> =
+        combine(form.testResult, settings.syncInterval) { test, interval -> OnboardingUiState(test, interval) }
+            .stateIn(
+                viewModelScope,
+                WhileUiSubscribed,
+                OnboardingUiState(form.testResult.value, settings.syncIntervalMinutes),
+            )
 
     /** Whether "Next" is enabled: the server step needs a valid URL and a token, the permissions step one read. */
     fun canContinue(step: Int, url: String, token: String, status: DeviceStatus?): Boolean = when (step) {
@@ -44,7 +54,12 @@ class OnboardingViewModel(
         else -> true
     }
 
-    /** Onboarding is done for good: the periodic sync starts. */
+    /** Only saved: nothing is scheduled until [finish]. */
+    fun setSyncInterval(minutes: Int) {
+        settings.syncIntervalMinutes = minutes
+    }
+
+    /** Onboarding is done for good: the periodic sync starts, at the chosen interval. */
     fun finish() {
         settings.onboardingDone = true
         schedulePeriodicSync()

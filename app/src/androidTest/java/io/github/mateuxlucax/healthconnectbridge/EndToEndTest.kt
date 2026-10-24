@@ -140,10 +140,8 @@ class EndToEndTest {
         assertExpectedSeries("health_weight_kg")
 
         screenshot("home-light") { text(it, R.string.status_ok) }
-        val permissionCount = HealthConnectAccess.requestedPermissions(client).size
-        screenshot("settings", action = { click(text(it, R.string.tab_settings)) }) {
-            resources(it).getQuantityString(R.plurals.permissions_all, permissionCount, permissionCount)
-        }
+        // The automatic sync card is on screen; the permissions card is further down.
+        screenshot("settings", action = { click(text(it, R.string.tab_settings)) }) { defaultInterval(it) }
         shell("cmd uimode night yes")
         waitUntil("night mode") {
             (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
@@ -313,6 +311,7 @@ class EndToEndTest {
             click(t(R.string.skip))
             step(5)
             waitFor(t(R.string.import_history))
+            waitFor(defaultInterval(language))
             device.waitForIdle()
             shot("onboarding-5-history")
             click(t(R.string.finish))
@@ -341,6 +340,10 @@ class EndToEndTest {
     private fun resources(language: Language) = context.createConfigurationContext(
         Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag(language.tag)) }
     ).resources
+
+    /** The interval picker's text when nothing was chosen. */
+    private fun defaultInterval(language: Language): String =
+        resources(language).getQuantityString(R.plurals.interval_minutes, 15, 15)
 
     private fun text(language: Language, id: Int, vararg args: Any): String =
         if (args.isEmpty()) resources(language).getString(id) else resources(language).getString(id, *args)

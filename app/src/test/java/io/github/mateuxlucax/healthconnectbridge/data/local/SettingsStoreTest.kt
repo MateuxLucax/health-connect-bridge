@@ -84,4 +84,42 @@ class SettingsStoreTest {
         )
         assertEquals(0, prefs.listenerCount)
     }
+
+    @Test
+    fun syncInterval_defaultsTo15Minutes() {
+        assertEquals(15, settings.syncIntervalMinutes)
+    }
+
+    @Test
+    fun syncInterval_isStored() {
+        settings.syncIntervalMinutes = 180
+        assertEquals(180, settings.syncIntervalMinutes)
+        assertEquals(180, prefs.values["sync_interval_minutes"])
+    }
+
+    @Test
+    fun syncInterval_unknownOrInvalidStoredValues_readAs15() {
+        prefs.values["sync_interval_minutes"] = 45
+        assertEquals(15, settings.syncIntervalMinutes)
+        prefs.values["sync_interval_minutes"] = 0
+        assertEquals(15, settings.syncIntervalMinutes)
+        prefs.values["sync_interval_minutes"] = "60"
+        assertEquals(15, settings.syncIntervalMinutes)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun syncInterval_rejectsUnsupportedValues() {
+        settings.syncIntervalMinutes = 10
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun syncInterval_flowEmitsChanges() = runTest {
+        val seen = mutableListOf<Int>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { settings.syncInterval.toList(seen) }
+        settings.syncIntervalMinutes = 60
+        settings.serverUrl = "http://192.168.0.10:8080" // another key: no emission
+        settings.syncIntervalMinutes = 1440
+        assertEquals(listOf(15, 60, 1440), seen)
+    }
 }

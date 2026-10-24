@@ -12,18 +12,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
-/** What Settings shows besides the form: the last history import and the connection test result. */
+/** What Settings shows besides the form: the last history import, the connection test result and the sync interval. */
 data class SettingsUiState(
     val lastBackfill: BackfillResult? = null,
     val testResult: TestResult? = null,
+    val syncIntervalMinutes: Int = SettingsStore.DEFAULT_SYNC_INTERVAL,
 )
 
 /** State and actions of the Settings tab. The form fields are UI element state, kept by the screen. */
 class SettingsViewModel(
-    settings: SettingsStore,
+    private val settings: SettingsStore,
     exporter: ExporterClient,
     /** Enqueues a history import of that many days (SyncScheduler.backfill). */
     requestBackfill: (Int) -> Unit,
+    /** Applies a new interval to the scheduled periodic sync (SyncScheduler.reschedulePeriodic). */
+    private val reschedulePeriodicSync: () -> Unit,
     /** Whether Android 17 local network protection would block connecting to a URL. */
     localNetworkBlocked: suspend (String) -> Boolean = { false },
 ) : ViewModel() {
@@ -31,10 +34,18 @@ class SettingsViewModel(
     val form = SetupForm(viewModelScope, settings, exporter, requestBackfill, localNetworkBlocked)
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(settings.syncState, form.testResult) { sync, test -> SettingsUiState(sync.lastBackfill, test) }
-            .stateIn(
-                viewModelScope,
-                WhileUiSubscribed,
-                SettingsUiState(settings.lastBackfill, form.testResult.value),
-            )
+        combine(settings.syncState, form.testResult, settings.syncInterval) { sync, test, interval ->
+            SettingsUiState(sync.lastBackfill, test, interval)
+        }.stateIn(
+            viewModelScope,
+            WhileUiSubscribed,
+            SettingsUiState(settings.lastBackfill, form.testResult.value, settings.syncIntervalMinutes),
+        )
+
+    /** Saves the interval and reschedules the periodic sync with it; picking the current one does nothing. */
+    fun setSyncInterval(minutes: Int) {
+        if (minutes == settings.syncIntervalMinutes) return
+        settings.syncIntervalMinutes = minutes
+        reschedulePeriodicSync()
+    }
 }

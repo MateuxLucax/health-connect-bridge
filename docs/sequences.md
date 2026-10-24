@@ -43,16 +43,41 @@ sequenceDiagram
     U->>O: step 4 Battery (optional)
     O->>OS: ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
     U->>O: step 5 History (optional)
+    opt pick "Sync every" (15 min to 24 h)
+        O->>SP: sync_interval_minutes (saved right away, nothing scheduled yet)
+    end
     opt import N days
         O->>WM: enqueue unique "backfill" (REPLACE, N days)
     end
     U->>O: Finish
     O->>SP: onboarding_done = true
-    O->>WM: enqueue unique periodic "periodic-sync" (15 min, KEEP)
+    O->>WM: enqueue unique periodic "periodic-sync" (sync_interval_minutes, KEEP)
 ```
 
 `MainActivity` also calls `SyncScheduler.schedulePeriodic` on every launch
-after onboarding; `KEEP` leaves an existing schedule alone.
+after onboarding; `KEEP` leaves an existing schedule alone, so a launch never
+restarts the timer.
+
+### Changing the sync interval
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant S as SettingsScreen + SettingsViewModel
+    participant SP as SettingsStore (SharedPreferences)
+    participant WM as WorkManager
+
+    U->>S: Automatic sync > Sync every: pick an interval
+    alt same as the stored one
+        S->>S: nothing
+    else another interval
+        S->>SP: sync_interval_minutes
+        S->>WM: enqueue unique periodic "periodic-sync" (new interval, UPDATE)
+        Note over WM: same unique work and id; the next run follows the new period
+    end
+    SP-->>S: Home and Settings show the new interval (flow)
+```
 
 ## First sync
 
@@ -373,7 +398,7 @@ sequenceDiagram
     participant E as Exporter
     participant P as Prometheus
 
-    WM->>S: periodic job (every 15 min, network required)
+    WM->>S: periodic job (every sync_interval_minutes, network required)
     S->>SP: read changes token + granted types key
     S->>HC: getChanges(token)
     HC-->>S: upserted records, nextChangesToken, hasMore

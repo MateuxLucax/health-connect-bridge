@@ -12,8 +12,12 @@ import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewMod
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.PERMISSIONS_STEP
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.SERVER_STEP
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.STEPS
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -23,6 +27,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()
@@ -79,6 +84,23 @@ class OnboardingViewModelTest {
         vm.finish()
         assertTrue(settings.onboardingDone)
         assertEquals(1, periodicScheduled)
+    }
+
+    @Test
+    fun syncInterval_savedRightAway_butScheduledOnlyByFinish() {
+        assertEquals(15, vm.uiState.value.syncIntervalMinutes)
+        vm.setSyncInterval(360)
+        assertEquals(360, settings.syncIntervalMinutes)
+        assertEquals(0, periodicScheduled)
+        vm.finish()
+        assertEquals(1, periodicScheduled)
+    }
+
+    @Test
+    fun syncInterval_inUiState() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        vm.setSyncInterval(60)
+        assertEquals(60, vm.uiState.value.syncIntervalMinutes)
     }
 
     @Test

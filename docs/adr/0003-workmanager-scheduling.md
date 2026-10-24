@@ -1,6 +1,6 @@
-# 3. WorkManager: 15-minute periodic job plus one-time jobs
+# 3. WorkManager: periodic job (15 minutes by default) plus one-time jobs
 
-Status: Accepted
+Status: Accepted (amended: configurable interval)
 
 ## Context
 
@@ -13,7 +13,13 @@ interval Android allows for periodic background work.
 `SyncWorker` (a `CoroutineWorker`) runs all sync work, with a network
 constraint; `SyncScheduler` enqueues it:
 
-- `periodic-sync`: unique periodic work every 15 minutes, `KEEP`.
+- `periodic-sync`: unique periodic work every `sync_interval_minutes` (15 by
+  default; the user picks 15 or 30 minutes, 1, 3, 6, 12 or 24 hours in the
+  onboarding's history step or in Settings). `KEEP` on app start and at the
+  end of onboarding, so a launch doesn't restart the timer. When the user
+  changes the interval, `UPDATE`: the same unique work gets the new period
+  without being cancelled, and its next run follows the new period.
+  `SyncScheduler.periodicPlan` holds this decision as a pure function.
 - `sync-now`: unique one-time work from the Home screen, `REPLACE`, so a
   previous manual run waiting in retry backoff doesn't swallow the tap
   (replacing a running sync is safe: the checkpoint moves per uploaded page
@@ -32,8 +38,9 @@ battery optimization, since One UI otherwise kills background work.
 
 ## Consequences
 
-- Data arrives within roughly 15 minutes plus the watch's own sync delay; no
-  real-time streaming.
+- Data arrives within roughly the chosen interval (15 minutes by default) plus
+  the watch's own sync delay; no real-time streaming. Longer intervals mean
+  fewer wake-ups and later data; "Sync now" is always available.
 - No foreground service or notification.
 - Errors that need the user (bad token, permissions) are not retried in a
   loop; they are shown on the Home screen until the next run succeeds.

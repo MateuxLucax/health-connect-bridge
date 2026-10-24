@@ -12,7 +12,7 @@
     <string name="last_sync">Última sincronização</string>
     <string name="never">Nunca</string>
     <string name="status_ok">Os dados chegaram ao servidor.</string>
-    <string name="status_auto">Sincroniza a cada 15 minutos.</string>
+    <string name="status_auto">Sincroniza a cada %1$s.</string>
     <string name="sync_now">Sincronizar agora</string>
     <string name="error_title">A última sincronização falhou</string>
     <string name="cd_error">Erro</string>
@@ -25,6 +25,7 @@
     <string name="section_server">Servidor</string>
     <string name="test_connection">Testar conexão</string>
     <string name="save">Salvar</string>
+    <string name="section_auto_sync">Sincronização automática</string>
     <string name="section_history">Importar histórico</string>
     <string name="history_settings_text">Lê de novo os dias anteriores do Health Connect e envia ao servidor. Na configuração padrão do exporter, o Prometheus aceita dados de até 30 dias.</string>
     <string name="section_permissions">Permissões e bateria</string>
@@ -37,7 +38,7 @@
     <string name="skip">Pular</string>
     <string name="finish">Concluir</string>
     <string name="welcome_title">Boas-vindas</string>
-    <string name="welcome_text">O app lê seus dados do Health Connect: frequência cardíaca, passos, sono, peso e mais. A cada 15 minutos, ele envia os dados para o seu servidor.</string>
+    <string name="welcome_text">O app lê seus dados do Health Connect: frequência cardíaca, passos, sono, peso e mais. Por padrão, ele envia os dados para o seu servidor a cada 15 minutos. Você pode mudar isso.</string>
     <string name="your_server">Seu servidor</string>
     <string name="prometheus_grafana">Prometheus e Grafana</string>
     <string name="welcome_server_text">O servidor (health-connect-prometheus-exporter) grava os dados no Prometheus. Você vê os gráficos no Grafana.</string>
@@ -57,7 +58,7 @@
     <string name="battery_skip_text">Você pode pular e fazer isso depois em Configurações.</string>
     <string name="history_text">A sincronização automática envia os últimos 7 dias e tudo o que for novo. Para enviar dados mais antigos, importe o histórico.</string>
     <string name="history_text_2">Na configuração padrão do exporter, o Prometheus aceita dados de até 30 dias. Dados mais antigos são recusados.</string>
-    <string name="history_text_3">Você também pode importar depois em Configurações. Toque em Concluir para começar.</string>
+    <string name="history_text_3">Você pode mudar o intervalo e importar depois em Configurações. Toque em Concluir para começar.</string>
 
     <!-- Componentes -->
     <string name="server_url">URL do servidor</string>
@@ -65,6 +66,17 @@
     <string name="token">Token</string>
     <string name="show_token">Mostrar token</string>
     <string name="hide_token">Ocultar token</string>
+    <string name="sync_interval">Sincronizar a cada</string>
+    <plurals name="interval_minutes">
+        <item quantity="one">%d minuto</item>
+        <item quantity="many">%d minutos</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
+    <plurals name="interval_hours">
+        <item quantity="one">%d hora</item>
+        <item quantity="many">%d horas</item>
+        <item quantity="other">%d horas</item>
+    </plurals>
     <string name="days">Dias</string>
     <string name="import_history">Importar</string>
     <string name="import_scheduled">Importação agendada. Ela roda em segundo plano. O resultado aparece em Importar histórico.</string>

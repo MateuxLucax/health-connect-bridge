@@ -12,14 +12,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * What Home shows: the last successful sync (0 = never), the last error, the last value per metric, and the
- * unreadable stretches of records the last sync skipped.
+ * What Home shows: the last successful sync (0 = never), the last error, the last value per metric, the
+ * unreadable stretches of records the last sync skipped, and the automatic sync interval.
  */
 data class HomeUiState(
     val lastSuccessMs: Long = 0L,
     val lastError: SyncError? = null,
     val values: List<LastValue> = emptyList(),
     val skipped: Int = 0,
+    val syncIntervalMinutes: Int = SettingsStore.DEFAULT_SYNC_INTERVAL,
 )
 
 /** State of the Home tab, updated whenever a sync records its outcome or uploads values. */
@@ -31,13 +32,15 @@ class HomeViewModel(
 ) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> =
-        combine(settings.syncState, lastValues.values) { sync, values ->
-            HomeUiState(sync.lastSuccessMs, sync.lastError, values, sync.lastSkipped)
+        combine(settings.syncState, lastValues.values, settings.syncInterval) { sync, values, interval ->
+            HomeUiState(sync.lastSuccessMs, sync.lastError, values, sync.lastSkipped, interval)
         }.stateIn(
             viewModelScope,
             WhileUiSubscribed,
             // The stored state right away, so the first frame doesn't show "never".
-            settings.currentSyncState().let { HomeUiState(it.lastSuccessMs, it.lastError, lastValues.all(), it.lastSkipped) },
+            settings.currentSyncState().let {
+                HomeUiState(it.lastSuccessMs, it.lastError, lastValues.all(), it.lastSkipped, settings.syncIntervalMinutes)
+            },
         )
 
     fun syncNow() = requestSync()

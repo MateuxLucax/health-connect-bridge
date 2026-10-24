@@ -12,7 +12,7 @@
     <string name="last_sync">Last sync</string>
     <string name="never">Never</string>
     <string name="status_ok">Data reached the server.</string>
-    <string name="status_auto">Syncs every 15 minutes.</string>
+    <string name="status_auto">Syncs every %1$s.</string>
     <string name="sync_now">Sync now</string>
     <string name="error_title">Last sync failed</string>
     <string name="cd_error">Error</string>
@@ -25,6 +25,7 @@
     <string name="section_server">Server</string>
     <string name="test_connection">Test connection</string>
     <string name="save">Save</string>
+    <string name="section_auto_sync">Automatic sync</string>
     <string name="section_history">Import history</string>
     <string name="history_settings_text">Reads past days from Health Connect again and sends them to the server. With the exporter’s default settings, Prometheus accepts data up to 30 days old.</string>
     <string name="section_permissions">Permissions and battery</string>
@@ -37,7 +38,7 @@
     <string name="skip">Skip</string>
     <string name="finish">Done</string>
     <string name="welcome_title">Welcome</string>
-    <string name="welcome_text">The app reads your Health Connect data: heart rate, steps, sleep, weight and more. It sends the data to your server every 15 minutes.</string>
+    <string name="welcome_text">The app reads your Health Connect data: heart rate, steps, sleep, weight and more. It sends the data to your server every 15 minutes by default. You can change this.</string>
     <string name="your_server">Your server</string>
     <string name="prometheus_grafana">Prometheus and Grafana</string>
     <string name="welcome_server_text">The server (health-connect-prometheus-exporter) stores the data in Prometheus. You view the charts in Grafana.</string>
@@ -57,7 +58,7 @@
     <string name="battery_skip_text">You can skip this and do it later in Settings.</string>
     <string name="history_text">Automatic sync sends the last 7 days and everything new. To send older data, import your history.</string>
     <string name="history_text_2">With the exporter’s default settings, Prometheus accepts data up to 30 days old. Older data is rejected.</string>
-    <string name="history_text_3">You can also import later in Settings. Tap Done to start.</string>
+    <string name="history_text_3">You can change the interval and import later in Settings. Tap Done to start.</string>
 
     <!-- Shared components -->
     <string name="server_url">Server URL</string>
@@ -65,6 +66,15 @@
     <string name="token">Token</string>
     <string name="show_token">Show token</string>
     <string name="hide_token">Hide token</string>
+    <string name="sync_interval">Sync every</string>
+    <plurals name="interval_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="interval_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
     <string name="days">Days</string>
     <string name="import_history">Import</string>
     <string name="import_scheduled">Import scheduled. It runs in the background. The result appears under Import history.</string>

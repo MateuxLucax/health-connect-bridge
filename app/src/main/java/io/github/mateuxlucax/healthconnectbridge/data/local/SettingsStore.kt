@@ -77,6 +77,19 @@ class SettingsStore(private val prefs: SharedPreferences) {
     private fun SharedPreferences.Editor.putError(kindKey: String, detailKey: String, error: SyncError?) =
         putString(kindKey, error?.kind?.name).putString(detailKey, error?.detail)
 
+    /** Minutes between automatic syncs, one of [SYNC_INTERVALS]; anything else stored reads as [DEFAULT_SYNC_INTERVAL]. */
+    var syncIntervalMinutes: Int
+        get() = runCatching { prefs.getInt(KEY_SYNC_INTERVAL, DEFAULT_SYNC_INTERVAL) }.getOrNull()
+            ?.takeIf { it in SYNC_INTERVALS } ?: DEFAULT_SYNC_INTERVAL
+        set(value) {
+            require(value in SYNC_INTERVALS) { "unsupported sync interval: $value" }
+            prefs.edit().putInt(KEY_SYNC_INTERVAL, value).apply()
+        }
+
+    /** [syncIntervalMinutes] now and after every change. */
+    val syncInterval: Flow<Int>
+        get() = prefs.changes(setOf(KEY_SYNC_INTERVAL)).map { syncIntervalMinutes }.distinctUntilChanged()
+
     /** Also true for installs that were already syncing before onboarding existed (v0.1.0). */
     var onboardingDone: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false) ||
@@ -96,6 +109,10 @@ class SettingsStore(private val prefs: SharedPreferences) {
 
         /** The preferences file shared by [SettingsStore] and [LastValues]. */
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+
+        /** The automatic sync intervals offered, in minutes; 15 is WorkManager's minimum for periodic work. */
+        val SYNC_INTERVALS = listOf(15, 30, 60, 180, 360, 720, 1440)
+        const val DEFAULT_SYNC_INTERVAL = 15
 
         /** Keys of the [SyncState]: written by syncs and shown by the screens. */
         internal val SYNC_STATE_KEYS get() = setOf(
@@ -117,5 +134,6 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_LAST_SKIPPED = "last_skipped"
         private const val KEY_BACKFILL_SKIPPED = "backfill_skipped"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
+        private const val KEY_SYNC_INTERVAL = "sync_interval_minutes"
     }
 }

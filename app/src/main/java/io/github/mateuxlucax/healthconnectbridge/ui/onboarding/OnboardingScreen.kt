@@ -54,6 +54,7 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.LocalNetworkNotic
 import io.github.mateuxlucax.healthconnectbridge.ui.components.Logo
 import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SyncIntervalPicker
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import io.github.mateuxlucax.healthconnectbridge.ui.components.launchConnectionTest
@@ -140,7 +141,7 @@ fun OnboardingScreen(
                     )
                     PERMISSIONS_STEP -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
                     BATTERY_STEP -> BatteryStep(status, actions.requestBatteryExemption)
-                    else -> HistoryStep { form.importHistory(it) }
+                    else -> HistoryStep(state.syncIntervalMinutes, viewModel::setSyncInterval, form::importHistory)
                 }
             }
         }
@@ -261,9 +262,10 @@ private fun BatteryStep(status: DeviceStatus?, onRequest: () -> Unit) {
 }
 
 @Composable
-private fun HistoryStep(onImport: (Int) -> Unit) {
+private fun HistoryStep(syncIntervalMinutes: Int, onSyncInterval: (Int) -> Unit, onImport: (Int) -> Unit) {
     StepTitle(stringResource(R.string.section_history))
     BodyText(stringResource(R.string.history_text))
+    SyncIntervalPicker(syncIntervalMinutes, onSyncInterval)
     BodyText(stringResource(R.string.history_text_2))
     HistoryImport(last = null, onImport)
     BodyText(stringResource(R.string.history_text_3))

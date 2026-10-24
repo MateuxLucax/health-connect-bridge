@@ -18,6 +18,18 @@ class FormatTest {
     private fun assertText(expected: String, actual: String) = assertEquals(expected, actual.replace(' ', ' '))
 
     @Test
+    fun syncIntervals() {
+        assertEquals(
+            listOf("15 minutes", "30 minutes", "1 hour", "3 hours", "6 hours", "12 hours", "24 hours"),
+            listOf(15, 30, 60, 180, 360, 720, 1440).map(en::interval),
+        )
+        assertEquals(
+            listOf("15 minutos", "30 minutos", "1 hora", "3 horas", "6 horas", "12 horas", "24 horas"),
+            listOf(15, 30, 60, 180, 360, 720, 1440).map(pt::interval),
+        )
+    }
+
+    @Test
     fun valuesWithUnits_portuguese() {
         assertEquals("72 bpm", pt.value("health_heart_rate_bpm", 72.0))
         assertEquals("8.421 passos", pt.value("health_steps", 8421.0))

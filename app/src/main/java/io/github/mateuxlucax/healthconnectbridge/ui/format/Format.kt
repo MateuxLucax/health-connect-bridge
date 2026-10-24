@@ -41,6 +41,14 @@ class Format(private val strings: Strings) {
         }
     }
 
+    /** An automatic sync interval: "15 minutes", "1 hour", "24 hours" / "15 minutos", "1 hora", "24 horas". */
+    fun interval(minutes: Int): String =
+        if (minutes < 60 || minutes % 60 != 0) {
+            strings.plural(R.plurals.interval_minutes, minutes, minutes)
+        } else {
+            strings.plural(R.plurals.interval_hours, minutes / 60, minutes / 60)
+        }
+
     /** Value of [metric] with its unit, e.g. "72 bpm", "8,421 steps" / "8.421 passos". Unit symbols aren't translated. */
     fun value(metric: String, value: Double): String = when (metric) {
         "health_heart_rate_bpm", "health_resting_heart_rate_bpm" -> "${number(value, 0)} bpm"

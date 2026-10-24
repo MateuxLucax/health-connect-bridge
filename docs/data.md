@@ -166,6 +166,7 @@ database. WorkManager keeps its own job queue.
 | `backfill_skipped` | Int | `SyncRunner` after a backfill | Unreadable stretches of records the last history import skipped. |
 | `last_values` | String (JSON) | `HealthSync` after each upload | Newest uploaded value per metric, for the Home screen. |
 | `onboarding_done` | Boolean | Onboarding (finish) | Shows the main screen and schedules the periodic job. |
+| `sync_interval_minutes` | Int | Onboarding (history step), Settings (automatic sync) | Period of the `periodic-sync` job: `15` (default), `30`, `60`, `180`, `360`, `720` or `1440`. Missing, unknown or non-integer values read as `15`. |
 
 `SyncError.Kind` values: retried later: `SERVER`, `NETWORK`, `OTHER`; the user
 must act: `UNAUTHORIZED`, `REJECTED`, `REDIRECTED`, `NOT_CONFIGURED`,

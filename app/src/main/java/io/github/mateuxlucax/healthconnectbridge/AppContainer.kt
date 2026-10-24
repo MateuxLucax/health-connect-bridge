@@ -30,7 +30,7 @@ class AppContainer(context: Context) {
     val settings = SettingsStore(prefs)
     val lastValues = LastValues(prefs)
     val exporterClient = ExporterClient()
-    val syncScheduler = SyncScheduler(appContext, SyncWorker::class.java)
+    val syncScheduler = SyncScheduler(appContext, SyncWorker::class.java) { settings.syncIntervalMinutes }
     val deviceStatusRepository = DeviceStatusRepository(appContext, settings)
 
     /**
@@ -52,7 +52,11 @@ class AppContainer(context: Context) {
             )
         }
         initializer { HomeViewModel(settings, lastValues, syncScheduler::syncNow) }
-        initializer { SettingsViewModel(settings, exporterClient, syncScheduler::backfill, localNetworkBlocked) }
+        initializer {
+            SettingsViewModel(
+                settings, exporterClient, syncScheduler::backfill, syncScheduler::reschedulePeriodic, localNetworkBlocked,
+            )
+        }
         initializer { DeviceStatusViewModel(deviceStatusRepository::load) }
     }
 }

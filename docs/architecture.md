@@ -76,9 +76,10 @@ flowchart TB
     ct -->|backfill| sch
     onb -->|schedule periodic| sch
     home -->|sync now| sch
-    home -->|"sync state, last values (flows)"| st
-    set -->|"server, last backfill"| st
-    onb -->|server, onboarding done| st
+    set -->|reschedule periodic| sch
+    home -->|"sync state, last values, interval (flows)"| st
+    set -->|"server, last backfill, interval"| st
+    onb -->|"server, interval, onboarding done"| st
     sch -->|enqueue SyncWorker| wk
     run --> hs
     run --> err
@@ -113,12 +114,12 @@ One Gradle module; packages by layer, features inside `ui/`
 | `data` | `DeviceStatusRepository.kt` | Health Connect availability, granted vs. requested permissions, battery exemption, local network access when the server is local |
 | `sync` | `HealthSync.kt` | Changes API sync, initial reads, backfill; skips records Health Connect can't read ([ADR 0014](adr/0014-skip-unreadable-records.md)) |
 | | `SyncRunner.kt`, `SyncErrors.kt` | One run at a time; records the outcome and returns success, failure or retry; maps exceptions to `SyncError` kinds (shared with the connection test) |
-| | `SyncScheduler.kt` | Unique work: `periodic-sync`, `sync-now`, `backfill` |
+| | `SyncScheduler.kt` | Unique work: `periodic-sync` (at the chosen interval; `KEEP` on start, `UPDATE` when the interval changes), `sync-now`, `backfill` |
 | `ui` | `App.kt`, `AppActions.kt`, `DeviceStatusViewModel.kt`, `WhileUiSubscribed.kt` | Onboarding until finished, then the Home and Settings tabs; activity callbacks passed to the screens; the device status, reloaded on resume |
-| `ui/onboarding` | `OnboardingScreen.kt`, `OnboardingViewModel.kt`, `DataFlow.kt` | Welcome (with the data flow animation), server (URL, token, connection test), permissions, battery, history import |
+| `ui/onboarding` | `OnboardingScreen.kt`, `OnboardingViewModel.kt`, `DataFlow.kt` | Welcome (with the data flow animation), server (URL, token, connection test), permissions, battery, sync interval and history import |
 | `ui/home` | `HomeScreen.kt`, `HomeViewModel.kt` | Last success or last error, "sync now", last value per metric |
-| `ui/settings` | `SettingsScreen.kt`, `SettingsViewModel.kt` | Server settings and connection test, history import, permission and battery state |
-| `ui/components` | `Components.kt`, `ServerSection.kt`, `StatusSection.kt`, `SetupForm.kt`, `ConnectionTest.kt`, `DataTypeCatalog.kt` | Shared composables; the server form, history import and connection test shared by the onboarding and Settings ViewModels; data types as shown to the user |
+| `ui/settings` | `SettingsScreen.kt`, `SettingsViewModel.kt` | Server settings and connection test, sync interval, history import, permission and battery state |
+| `ui/components` | `Components.kt`, `ServerSection.kt`, `StatusSection.kt`, `SetupForm.kt`, `SyncIntervalPicker.kt`, `ConnectionTest.kt`, `DataTypeCatalog.kt` | Shared composables; the server form, history import and connection test shared by the onboarding and Settings ViewModels; data types as shown to the user |
 | `ui/format` | `Strings.kt`, `Format.kt`, `SyncErrorText.kt` | String resource lookup, locale-aware formatting, error messages |
 | `ui/theme` | `Theme.kt` | Dynamic color theme |
 | `res` | `values`, `values-pt-rBR` | UI text in English (default) and Brazilian Portuguese |

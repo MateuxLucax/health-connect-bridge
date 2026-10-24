@@ -28,8 +28,9 @@ class SettingsViewModelTest {
     private val server = FakeServer()
     private val settings = SettingsStore(InMemoryPrefs())
     private val backfills = mutableListOf<Int>()
+    private var reschedules = 0
     /** Created in the test, after [main] replaced Dispatchers.Main. */
-    private val vm by lazy { SettingsViewModel(settings, ExporterClient(), { backfills += it }) }
+    private val vm by lazy { SettingsViewModel(settings, ExporterClient(), { backfills += it }, { reschedules++ }) }
 
     @After
     fun tearDown() = server.close()
@@ -47,6 +48,28 @@ class SettingsViewModelTest {
     fun importHistory_requestsABackfill() {
         vm.form.importHistory(30)
         assertEquals(listOf(30), backfills)
+    }
+
+    @Test
+    fun setSyncInterval_savesAndReschedules() {
+        vm.setSyncInterval(720)
+        assertEquals(720, settings.syncIntervalMinutes)
+        assertEquals(1, reschedules)
+    }
+
+    @Test
+    fun setSyncInterval_sameValue_doesNotReschedule() {
+        vm.setSyncInterval(15)
+        assertEquals(0, reschedules)
+    }
+
+    @Test
+    fun showsTheSyncInterval() = runTest {
+        settings.syncIntervalMinutes = 30
+        assertEquals(30, vm.uiState.value.syncIntervalMinutes)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        vm.setSyncInterval(1440)
+        assertEquals(1440, vm.uiState.value.syncIntervalMinutes)
     }
 
     @Test

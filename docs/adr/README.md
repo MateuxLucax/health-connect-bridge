@@ -8,7 +8,7 @@ Consequences). The server's decisions are in the
 |---|----------|--------|
 | [0001](0001-health-connect-with-own-minimal-app.md) | Read from Health Connect with our own minimal app | Accepted |
 | [0002](0002-changes-api-checkpoint-after-2xx.md) | Changes API, checkpoint advanced only after a 2xx | Accepted |
-| [0003](0003-workmanager-scheduling.md) | WorkManager: 15-minute periodic job plus one-time jobs | Accepted |
+| [0003](0003-workmanager-scheduling.md) | WorkManager: periodic job (15 minutes by default) plus one-time jobs | Accepted (amended: configurable interval) |
 | [0004](0004-minimal-dependencies.md) | Minimal dependencies | Accepted (amended for lifecycle ViewModel) |
 | [0005](0005-compose-material3-dynamic-color.md) | Jetpack Compose and Material 3 with dynamic color | Accepted |
 | [0006](0006-sharedpreferences-for-state.md) | SharedPreferences for all state | Accepted |

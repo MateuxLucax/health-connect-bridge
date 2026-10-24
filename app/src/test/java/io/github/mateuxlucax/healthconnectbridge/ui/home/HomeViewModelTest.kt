@@ -71,6 +71,16 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun showsTheSyncInterval() = runTest {
+        settings.syncIntervalMinutes = 60
+        val vm = viewModel()
+        assertEquals(60, vm.uiState.value.syncIntervalMinutes)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        settings.syncIntervalMinutes = 180
+        assertEquals(180, vm.uiState.value.syncIntervalMinutes)
+    }
+
+    @Test
     fun syncNow_requestsASync() {
         viewModel().syncNow()
         assertEquals(1, syncRequests)

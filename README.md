@@ -36,7 +36,7 @@ Galaxy Watch
                                 └─> Prometheus (remote write)
 ```
 
-- A WorkManager job runs every 15 minutes when there is network.
+- A WorkManager job runs every 15 minutes by default (30 min, 1, 3, 6, 12 or 24 hours in **Settings**) when there is network.
 - It uses the Health Connect **Changes API**, so records that arrive late (the watch syncs in batches) or are edited are still sent.
 - First run (or when the set of granted data types changes): it takes a changes token, reads the last 7 days, uploads them, then stores the token. If the token expires (Health Connect keeps them about 30 days), it reads the last 30 days and starts over.
 - The checkpoint only moves forward after the server accepts a batch (2xx). Server errors (5xx) and network errors are retried later. A rejected token (401) or other 4xx is shown in the app.
@@ -51,8 +51,8 @@ Galaxy Watch
    - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Test connection** sends an empty batch to check both. On Android 17 and later, if the server is on your local network (its name resolves to an address like `192.168.x.x`, or ends in `.local`), Android asks to let the app find and connect to devices on your local network (**Nearby devices**): allow it, or the app can't reach the server.
    - **Permissions**: tap **Grant permissions** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
    - **Battery**: tap **Turn off battery optimization**. One UI kills background work otherwise.
-   - **History**: optionally import older data, then tap **Finish**.
-4. **Home** shows the last sync (or the last error), a **Sync now** button and the last value sent for each metric. **Settings** has the server, history import, permissions and battery settings.
+   - **History**: pick how often to sync (**Sync every**, 15 minutes by default), optionally import older data, then tap **Done**.
+4. **Home** shows the last sync (or the last error), a **Sync now** button and the last value sent for each metric. **Settings** has the server, the sync interval, history import, permissions and battery settings.
 
 ## Troubleshooting
 

@@ -90,7 +90,8 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         SyncCard(
-            state.lastSuccessMs, state.lastError, state.skipped, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow,
+            state.lastSuccessMs, state.lastError, state.skipped, state.syncIntervalMinutes, status?.backgroundMissing == true,
+            now, zone, format, actions, onSyncNow,
         )
         ExportedValues(state.values, now, zone, format)
     }
@@ -101,6 +102,7 @@ private fun SyncCard(
     lastSuccess: Long,
     lastError: SyncError?,
     skipped: Int,
+    syncIntervalMinutes: Int,
     backgroundMissing: Boolean,
     now: Long,
     zone: ZoneId,
@@ -134,7 +136,7 @@ private fun SyncCard(
             when {
                 lastError != null -> ErrorBox(lastError.message(rememberStrings()))
                 lastSuccess > 0 -> StatusLine(true, stringResource(R.string.status_ok))
-                else -> StatusLine(null, stringResource(R.string.status_auto))
+                else -> StatusLine(null, stringResource(R.string.status_auto, format.interval(syncIntervalMinutes)))
             }
             if (lastError == null && skipped > 0) SkippedNote(skipped)
             if (backgroundMissing) BackgroundWarning()
