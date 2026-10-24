@@ -115,15 +115,15 @@ class EndToEndTest {
     fun launcherIconScreenshots() {
         shell("mkdir -p $SCREENSHOT_DIR")
         val device = UiDevice.getInstance(instrumentation)
-        val plain = captureLauncherIcon(device)
+        val (plain, launcher) = captureLauncherIcon(device)
         save("launcher-icon", plain)
 
         // Launcher3's own setting for Material You themed icons (what Wallpaper & style toggles).
-        val uri = "content://${device.launcherPackageName}.grid_control/icon_themed"
+        val uri = "content://$launcher.grid_control/icon_themed"
         val out = shell("content update --uri $uri --bind boolean_value:b:true") + shell("content query --uri $uri")
         Thread.sleep(3_000)
-        val themed = captureLauncherIcon(device)
-        if (themed.sameAs(plain)) org.junit.Assert.fail("DEBUG themed: ${device.launcherPackageName} $out")
+        val (themed) = captureLauncherIcon(device)
+        if (themed.sameAs(plain)) org.junit.Assert.fail("DEBUG themed: $launcher $out")
         else save("launcher-icon-themed", themed)
     }
 
@@ -237,8 +237,8 @@ class EndToEndTest {
         }
     }
 
-    /** Opens the app drawer and returns a crop of this app's icon and label. */
-    private fun captureLauncherIcon(device: UiDevice): Bitmap {
+    /** Opens the app drawer and returns a crop of this app's icon and label, and the launcher's package. */
+    private fun captureLauncherIcon(device: UiDevice): Pair<Bitmap, String> {
         device.pressHome()
         device.waitForIdle()
         device.swipe(device.displayWidth / 2, device.displayHeight * 4 / 5, device.displayWidth / 2, device.displayHeight / 5, 20)
@@ -253,7 +253,7 @@ class EndToEndTest {
             intersect(0, 0, screen.width, screen.height)
         }
         device.pressHome()
-        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height())
+        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height()) to icon.applicationPackage
     }
 
     /** Writes a PNG to [SCREENSHOT_DIR], which survives the app being uninstalled after the run. */
