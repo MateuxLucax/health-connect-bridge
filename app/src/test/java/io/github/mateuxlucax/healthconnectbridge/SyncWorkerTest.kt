@@ -51,8 +51,8 @@ class SyncWorkerTest {
         val result = runWith(uploadOne)
         assertTrue(result is ListenableWorker.Result.Failure)
         assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError)
-        assertEquals("Token rejected by server (401).", settings.lastError!!.message(XmlStrings.of(XmlStrings.ENGLISH)))
-        assertEquals("Token rejeitado pelo servidor (401).", settings.lastError!!.message(XmlStrings.of(XmlStrings.PORTUGUESE)))
+        assertEquals("Server rejected the token (401). Check the token.", settings.lastError!!.message(XmlStrings.of(XmlStrings.ENGLISH)))
+        assertEquals("Servidor recusou o token (401). Confira o token.", settings.lastError!!.message(XmlStrings.of(XmlStrings.PORTUGUESE)))
         assertEquals(0L, settings.lastSuccessMs)
     }
 
