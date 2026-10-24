@@ -84,6 +84,7 @@
     <!-- Sync errors (SyncError.Kind) -->
     <string name="error_unauthorized">Token rejected by server (401).</string>
     <string name="error_rejected">Server rejected the data: %1$s</string>
+    <string name="error_redirected">The server redirected the request (%1$s). Check the URL, for example http instead of https.</string>
     <string name="error_server">Server error: %1$s</string>
     <string name="error_not_configured">Set the server URL and token.</string>
     <string name="error_invalid_url">Invalid URL. Example: http://192.168.0.10:8080</string>

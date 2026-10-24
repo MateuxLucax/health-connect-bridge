@@ -86,6 +86,7 @@
     <!-- Erros de sincronização (SyncError.Kind) -->
     <string name="error_unauthorized">Token rejeitado pelo servidor (401).</string>
     <string name="error_rejected">Servidor recusou os dados: %1$s</string>
+    <string name="error_redirected">O servidor redirecionou a requisição (%1$s). Confira a URL, por exemplo http em vez de https.</string>
     <string name="error_server">Erro no servidor: %1$s</string>
     <string name="error_not_configured">Configure a URL do servidor e o token.</string>
     <string name="error_invalid_url">URL inválida. Exemplo: http://192.168.0.10:8080</string>

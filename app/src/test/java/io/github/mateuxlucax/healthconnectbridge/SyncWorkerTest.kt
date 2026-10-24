@@ -62,6 +62,39 @@ class SyncWorkerTest {
     }
 
     @Test
+    fun timeoutAndRateLimitRetry() {
+        for (code in listOf(408, 429)) {
+            server.status = { code }
+            val result = runWith(uploadOne)
+            assertTrue("HTTP $code", result is ListenableWorker.Result.Retry)
+            assertEquals(SyncError.Kind.SERVER, settings.lastError?.kind)
+        }
+    }
+
+    @Test
+    fun redirectFailsWithUrlHint() {
+        server.status = { 301 }
+        val result = runWith(uploadOne)
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(SyncError.Kind.REDIRECTED, settings.lastError?.kind)
+        assertEquals(1, server.requests.size) // not followed
+    }
+
+    @Test
+    fun securityExceptionFails() {
+        val result = runWith { throw SecurityException("no access") }
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(SyncError(SyncError.Kind.PERMISSION_DENIED, "no access"), settings.lastError)
+    }
+
+    @Test
+    fun unexpectedExceptionRetries() {
+        val result = runWith { throw IllegalStateException("rate limited") }
+        assertTrue(result is ListenableWorker.Result.Retry)
+        assertEquals(SyncError(SyncError.Kind.OTHER, "IllegalStateException: rate limited"), settings.lastError)
+    }
+
+    @Test
     fun serverErrorRetries() {
         server.status = { 503 }
         val result = runWith(uploadOne)

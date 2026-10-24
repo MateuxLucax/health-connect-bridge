@@ -11,6 +11,7 @@ data class SyncError(val kind: Kind, val detail: String? = null) {
     enum class Kind(@StringRes val message: Int, val retry: Boolean) {
         UNAUTHORIZED(R.string.error_unauthorized, false),
         REJECTED(R.string.error_rejected, false),
+        REDIRECTED(R.string.error_redirected, false),
         SERVER(R.string.error_server, true),
         NOT_CONFIGURED(R.string.error_not_configured, false),
         INVALID_URL(R.string.error_invalid_url, false),
@@ -27,6 +28,9 @@ data class SyncError(val kind: Kind, val detail: String? = null) {
         fun of(e: Exception): SyncError = when (e) {
             is HttpStatusException -> when {
                 e.code == 401 -> SyncError(Kind.UNAUTHORIZED)
+                e.code in 300..399 -> SyncError(Kind.REDIRECTED, e.message)
+                // Request timeout and rate limiting are temporary.
+                e.code == 408 || e.code == 429 -> SyncError(Kind.SERVER, e.message)
                 e.code < 500 -> SyncError(Kind.REJECTED, e.message)
                 else -> SyncError(Kind.SERVER, e.message)
             }

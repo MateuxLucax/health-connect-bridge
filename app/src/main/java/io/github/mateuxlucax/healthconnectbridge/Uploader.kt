@@ -39,6 +39,9 @@ object Uploader {
         val connection = URL(serverUrl.trimEnd('/') + "/api/v1/samples").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
+            // A redirect is reported as an error (wrong URL, or http that should be https), and the token is
+            // never sent on to another location.
+            connection.instanceFollowRedirects = false
             connection.connectTimeout = 15_000
             connection.readTimeout = 60_000
             connection.doOutput = true
