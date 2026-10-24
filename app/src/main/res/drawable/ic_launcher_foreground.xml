@@ -1,17 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Heart with a pulse line, inside the 66dp adaptive icon safe zone. -->
+<!-- Heart outline (Grafana orange to yellow) with a pulse line. 52dp wide, inside the
+     66dp safe zone; nudged 0.3dp down so the visual mass sits on the canvas center. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,78 L33,57 C26,50 27,39 35,35 C42,31 49,34 54,41 C59,34 66,31 73,35 C81,39 82,50 75,57 Z" />
-    <path
-        android:pathData="M30,53 L43,53 L47,45 L53,62 L58,49 L61,53 L78,53"
-        android:strokeWidth="3.5"
-        android:strokeColor="#C62828"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    <group android:translateY="0.3">
+        <path
+            android:pathData="M54,76 L35,57 C28,50 29,40 37,36.5 C43.5,33.5 50,36 54,42 C58,36 64.5,33.5 71,36.5 C79,40 80,50 73,57 Z"
+            android:strokeWidth="4.5"
+            android:strokeLineJoin="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="30"
+                    android:startY="78"
+                    android:endX="78"
+                    android:endY="33">
+                    <item android:offset="0" android:color="#FFF05A28" />
+                    <item android:offset="1" android:color="#FFFBCA0A" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M32,54 L44,54 L48,46 L53,63 L57,49 L60,54 L76,54"
+            android:strokeWidth="3.4"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>
