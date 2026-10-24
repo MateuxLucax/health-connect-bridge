@@ -28,8 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -53,8 +55,9 @@ private val NODES = listOf(
 private val CIRCLE = 44.dp
 
 /**
- * Watch → phone → server → Grafana, with a highlight and a dot hopping left to right in a loop.
- * Static when the system turns animations off.
+ * Watch → phone → server → Grafana. Each node lights up in turn and the arrow to the next one fills
+ * with color like a progress bar; after the last node everything fades back and the loop restarts.
+ * Static (all arrows filled) when the system turns animations off.
  */
 @Composable
 fun DataFlow(modifier: Modifier = Modifier) {
@@ -63,8 +66,8 @@ fun DataFlow(modifier: Modifier = Modifier) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
     }
     var active by remember { mutableIntStateOf(-1) }
-    var hop by remember { mutableIntStateOf(-1) }
-    val dot = remember { Animatable(0f) }
+    val fills = remember { List(NODES.lastIndex) { Animatable(if (animate) 0f else 1f) } }
+    val fillAlpha = remember { Animatable(1f) }
     LaunchedEffect(animate) {
         if (!animate) return@LaunchedEffect
         while (true) {
@@ -72,18 +75,20 @@ fun DataFlow(modifier: Modifier = Modifier) {
                 active = i
                 delay(600)
                 if (i < NODES.lastIndex) {
-                    dot.snapTo(0f)
-                    hop = i
-                    dot.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-                    hop = -1
+                    fills[i].animateTo(1f, tween(700, easing = FastOutSlowInEasing))
                 }
             }
             delay(1000)
+            active = -1
+            fillAlpha.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
+            fills.forEach { it.snapTo(0f) }
+            fillAlpha.snapTo(1f)
+            delay(200)
         }
     }
 
-    val line = MaterialTheme.colorScheme.outlineVariant
-    val dotColor = MaterialTheme.colorScheme.primary
+    val neutral = MaterialTheme.colorScheme.outlineVariant
+    val filled = MaterialTheme.colorScheme.primary
     val description = stringResource(R.string.flow_description)
     Row(
         modifier
@@ -92,19 +97,36 @@ fun DataFlow(modifier: Modifier = Modifier) {
             .drawBehind {
                 val column = size.width / NODES.size
                 val radius = CIRCLE.toPx() / 2
+                // Circles are top-aligned in the row, so their centers sit at y = radius.
                 val y = radius
                 val gap = 6.dp.toPx()
-                val stroke = 2.dp.toPx()
+                val stroke = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                 val head = 4.dp.toPx()
                 for (i in 0 until NODES.lastIndex) {
                     val start = column * (i + 0.5f) + radius + gap
                     val end = column * (i + 1.5f) - radius - gap
                     if (end <= start) continue
-                    drawLine(line, Offset(start, y), Offset(end, y), stroke, StrokeCap.Round)
-                    drawLine(line, Offset(end - head, y - head), Offset(end, y), stroke, StrokeCap.Round)
-                    drawLine(line, Offset(end - head, y + head), Offset(end, y), stroke, StrokeCap.Round)
-                    if (i == hop) {
-                        drawCircle(dotColor, 3.dp.toPx(), Offset(start + (end - start) * dot.value, y))
+                    val arrow = Path().apply {
+                        moveTo(start, y)
+                        lineTo(end, y)
+                        moveTo(end - head, y - head)
+                        lineTo(end, y)
+                        lineTo(end - head, y + head)
+                    }
+                    drawPath(arrow, neutral, style = stroke)
+                    val progress = fills[i].value
+                    if (progress <= 0f) continue
+                    val alpha = fillAlpha.value
+                    if (progress >= 1f) {
+                        drawPath(arrow, filled, alpha = alpha, style = stroke)
+                    } else {
+                        // The colored part grows along the shaft and reaches the tip as progress hits 1.
+                        val x = start + (end - start) * progress
+                        val bar = Path().apply {
+                            moveTo(start, y)
+                            lineTo(x, y)
+                        }
+                        drawPath(bar, filled, alpha = alpha, style = stroke)
                     }
                 }
             },
