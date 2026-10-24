@@ -108,7 +108,8 @@ class HealthSync(
     private suspend fun upload(samples: List<Sample>) {
         if (samples.isEmpty()) return
         Uploader.upload(settings.serverUrl, settings.token, samples)
-        LastValues(settings.prefs).record(samples)
+        // Display cache only: it must never fail a sync whose upload succeeded.
+        runCatching { LastValues(settings.prefs).record(samples) }
     }
 
     private fun client(): HealthConnectClient {

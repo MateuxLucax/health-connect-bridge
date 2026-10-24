@@ -311,6 +311,18 @@ class HealthSyncTest {
     }
 
     @Test
+    fun corruptDisplayCache_doesNotFailTheSync() {
+        initialize("t1")
+        settings.prefs.edit().putString("last_values", "{not json").apply()
+        client.changesHandler = { changes(UpsertionChange(steps()), next = "t2") }
+
+        run()
+
+        assertEquals("t2", settings.changesToken)
+        assertEquals(listOf("health_steps"), LastValues(settings.prefs).all().map { it.metric })
+    }
+
+    @Test
     fun deletions_produceNoSamples() {
         initialize("t1")
         client.changesHandler = { changes(DeletionChange("gone-1"), DeletionChange("gone-2"), next = "t2") }

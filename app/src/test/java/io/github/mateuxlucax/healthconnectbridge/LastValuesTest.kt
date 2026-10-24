@@ -51,4 +51,18 @@ class LastValuesTest {
         assertEquals(72.5, reloaded.value, 0.0)
         assertEquals(10L, reloaded.timestampMs)
     }
+
+    @Test
+    fun corruptStorageIsIgnoredAndReplaced() {
+        prefs.edit().putString("last_values", "{not json").apply()
+        assertTrue(store.all().isEmpty())
+        store.record(listOf(sample("health_weight_kg", 72.5, 10)))
+        assertEquals(72.5, store.all().single().value, 0.0)
+    }
+
+    @Test
+    fun malformedEntriesAreSkipped() {
+        prefs.edit().putString("last_values", """{"health_steps":5,"health_weight_kg":{"v":72.5,"t":10},"x":{"v":1}}""").apply()
+        assertEquals(listOf("health_weight_kg"), store.all().map { it.metric })
+    }
 }

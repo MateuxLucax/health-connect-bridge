@@ -24,15 +24,16 @@ class LastValues(private val prefs: SharedPreferences) {
 
     fun all(): List<LastValue> {
         val json = load()
-        return json.keys().asSequence().map { key ->
-            val entry = json.getJSONObject(key)
+        return json.keys().asSequence().mapNotNull { key ->
+            val entry = json.optJSONObject(key) ?: return@mapNotNull null
             val metric = key.substringBefore(SEPARATOR)
             val label = key.substringAfter(SEPARATOR, "").ifEmpty { null }
-            LastValue(metric, label, entry.getDouble("v"), entry.getLong("t"))
+            runCatching { LastValue(metric, label, entry.getDouble("v"), entry.getLong("t")) }.getOrNull()
         }.toList()
     }
 
-    private fun load() = prefs.getString(KEY, null)?.let { JSONObject(it) } ?: JSONObject()
+    /** The stored JSON, or an empty object when it is missing or corrupt: this is only a display cache. */
+    private fun load() = prefs.getString(KEY, null)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
 
     private fun keyOf(s: Sample): String {
         val label = s.labels["stage"] ?: s.labels["exercise_type"]
