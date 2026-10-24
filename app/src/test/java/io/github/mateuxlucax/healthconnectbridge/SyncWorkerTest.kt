@@ -22,7 +22,7 @@ class SyncWorkerTest {
     fun tearDown() = server.close()
 
     private fun runWith(block: suspend () -> Unit): ListenableWorker.Result =
-        runBlocking { SyncWorker.runAndReport(settings, block) }
+        runBlocking { SyncWorker.runAndReport(settings, sync = block) }
 
     private val uploadOne: suspend () -> Unit = {
         Uploader.upload(server.url, "t", listOf(Sample("health_steps", mapOf("source" to "a"), 1, 1L)))
