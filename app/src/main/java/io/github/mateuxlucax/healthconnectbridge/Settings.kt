@@ -66,8 +66,10 @@ class Settings(val prefs: SharedPreferences) {
     private fun SharedPreferences.Editor.putError(kindKey: String, detailKey: String, error: SyncError?) =
         putString(kindKey, error?.kind?.name).putString(detailKey, error?.detail)
 
+    /** Also true for installs that were already syncing before onboarding existed (v0.1.0). */
     var onboardingDone: Boolean
-        get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
+        get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false) ||
+            (serverUrl.isNotBlank() && token.isNotBlank() && changesToken != null)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
     private companion object {
