@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -25,7 +26,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SettingsScreen(settings: Settings, status: DeviceStatus?, actions: AppActions, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    settings: Settings,
+    status: DeviceStatus?,
+    refreshKey: Int,
+    actions: AppActions,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
     var token by rememberSaveable { mutableStateOf(settings.token) }
@@ -57,7 +64,8 @@ fun SettingsScreen(settings: Settings, status: DeviceStatus?, actions: AppAction
 
         SectionCard(stringResource(R.string.section_history)) {
             BodyText(stringResource(R.string.history_settings_text))
-            HistoryImport { SyncWorker.backfill(context, it) }
+            val lastBackfill = remember(refreshKey) { settings.lastBackfill }
+            HistoryImport(lastBackfill) { SyncWorker.backfill(context, it) }
         }
 
         SectionCard(stringResource(R.string.section_permissions)) {

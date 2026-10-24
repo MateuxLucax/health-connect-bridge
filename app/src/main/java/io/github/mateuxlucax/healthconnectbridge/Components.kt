@@ -188,9 +188,9 @@ fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTo
     }
 }
 
-/** Days field and "Importar" button; [onImport] receives the number of days. */
+/** Days field and "Import" button, and the outcome of the [last] import; [onImport] receives the number of days. */
 @Composable
-fun HistoryImport(onImport: (Int) -> Unit) {
+fun HistoryImport(last: BackfillResult?, onImport: (Int) -> Unit) {
     var days by rememberSaveable { mutableStateOf("30") }
     var scheduled by rememberSaveable { mutableStateOf(false) }
     val parsed = days.toIntOrNull()?.takeIf { it > 0 }
@@ -212,6 +212,15 @@ fun HistoryImport(onImport: (Int) -> Unit) {
         }
         if (scheduled) {
             StatusLine(true, stringResource(R.string.import_scheduled))
+        } else if (last != null) {
+            val strings = rememberStrings()
+            val error = last.error
+            if (error == null) {
+                val time = rememberFormat().dateTime(last.finishedMs, java.time.ZoneId.systemDefault())
+                StatusLine(true, stringResource(R.string.backfill_done, time))
+            } else {
+                StatusLine(false, stringResource(R.string.backfill_failed, error.message(strings)))
+            }
         }
     }
 }

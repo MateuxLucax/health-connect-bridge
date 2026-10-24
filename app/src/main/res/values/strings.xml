@@ -62,7 +62,9 @@
     <string name="hide_token">Hide token</string>
     <string name="days">Days</string>
     <string name="import_history">Import</string>
-    <string name="import_scheduled">Import scheduled. It runs in the background; the result shows up on Home.</string>
+    <string name="import_scheduled">Import scheduled. It runs in the background; the result shows up in Settings, under Import history.</string>
+    <string name="backfill_done">Last import finished on %1$s.</string>
+    <string name="backfill_failed">Last import failed: %1$s</string>
     <string name="hc_update_required">Update Health Connect to continue.</string>
     <string name="hc_unavailable">Health Connect is not available on this device.</string>
     <plurals name="permissions_all">

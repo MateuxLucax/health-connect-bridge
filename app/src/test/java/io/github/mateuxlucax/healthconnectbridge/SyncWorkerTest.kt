@@ -1,9 +1,13 @@
 package io.github.mateuxlucax.healthconnectbridge
 
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.response.ChangesResponse
 import androidx.work.ListenableWorker
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -110,6 +114,50 @@ class SyncWorkerTest {
         }
         assertTrue(result is ListenableWorker.Result.Retry)
         assertEquals(SyncError.Kind.NETWORK, settings.lastError?.kind)
+    }
+
+    @Test
+    fun backfillInput_runsBackfill_andReportsItSeparately() {
+        settings.serverUrl = server.url
+        settings.token = "t"
+        settings.lastError = SyncError(SyncError.Kind.UNAUTHORIZED)
+        val client = FakeHealthConnectClient(granted = setOf(HealthPermission.getReadPermission(StepsRecord::class)))
+
+        val result = runBlocking { SyncWorker.runSync(settings, HealthSync(settings) { client }, 5) }
+
+        assertTrue(result is ListenableWorker.Result.Success)
+        assertTrue(client.readRequests.isNotEmpty())
+        assertFalse(client.calls.any { it == "getChangesToken" || it.startsWith("getChanges:") })
+        assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError) // Home's state is untouched
+        assertEquals(0L, settings.lastSuccessMs)
+        assertNull(settings.lastBackfill!!.error)
+        assertNull(settings.changesToken)
+    }
+
+    @Test
+    fun noBackfillInput_runsIncremental() {
+        settings.serverUrl = server.url
+        settings.token = "t"
+        val client = FakeHealthConnectClient(granted = setOf(HealthPermission.getReadPermission(StepsRecord::class)))
+        client.issuedTokens += "t0"
+        client.changesHandler = { ChangesResponse(emptyList(), "t1", false, false) }
+
+        val result = runBlocking { SyncWorker.runSync(settings, HealthSync(settings) { client }, 0) }
+
+        assertTrue(result is ListenableWorker.Result.Success)
+        assertEquals("t1", settings.changesToken)
+        assertTrue(settings.lastSuccessMs > 0)
+        assertNull(settings.lastBackfill)
+    }
+
+    @Test
+    fun failedBackfill_isOnlyReportedAsBackfillResult() {
+        val result = runBlocking {
+            SyncWorker.runAndReport(settings, backfill = true) { throw HttpStatusException(500, "HTTP 500") }
+        }
+        assertTrue(result is ListenableWorker.Result.Retry)
+        assertNull(settings.lastError)
+        assertEquals(SyncError.Kind.SERVER, settings.lastBackfill!!.error?.kind)
     }
 
     @Test

@@ -221,6 +221,6 @@ private fun HistoryStep(onImport: (Int) -> Unit) {
     StepTitle(stringResource(R.string.section_history))
     BodyText(stringResource(R.string.history_text))
     BodyText(stringResource(R.string.history_text_2))
-    HistoryImport(onImport)
+    HistoryImport(last = null, onImport)
     BodyText(stringResource(R.string.history_text_3))
 }

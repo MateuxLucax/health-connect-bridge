@@ -22,31 +22,51 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     override suspend fun doWork(): Result = mutex.withLock {
         val settings = Settings(applicationContext)
-        runAndReport(settings) {
-            val sync = HealthSync(applicationContext, settings)
-            val backfillDays = inputData.getInt(KEY_BACKFILL_DAYS, 0)
-            if (backfillDays > 0) sync.backfill(backfillDays) else sync.incremental()
-        }
+        runSync(settings, HealthSync(applicationContext, settings), inputData.getInt(KEY_BACKFILL_DAYS, 0))
     }
 
     companion object {
         private const val KEY_BACKFILL_DAYS = "backfill_days"
         private val mutex = Mutex()
 
-        /** Runs [sync], records the outcome in [settings] and maps it to a WorkManager result. */
-        internal suspend fun runAndReport(settings: Settings, sync: suspend () -> Unit): ListenableWorker.Result =
-            try {
+        /** A backfill of [backfillDays] when positive, the incremental sync otherwise. */
+        internal suspend fun runSync(settings: Settings, sync: HealthSync, backfillDays: Int): ListenableWorker.Result =
+            if (backfillDays > 0) {
+                runAndReport(settings, backfill = true) { sync.backfill(backfillDays) }
+            } else {
+                runAndReport(settings) { sync.incremental() }
+            }
+
+        /**
+         * Runs [sync], records the outcome in [settings] and maps it to a WorkManager result. Only incremental
+         * runs set the last success and error shown on Home; a backfill is reported as [Settings.lastBackfill].
+         */
+        internal suspend fun runAndReport(
+            settings: Settings,
+            backfill: Boolean = false,
+            sync: suspend () -> Unit,
+        ): ListenableWorker.Result {
+            val error = try {
                 sync()
-                settings.lastSuccessMs = System.currentTimeMillis()
-                settings.lastError = null
-                ListenableWorker.Result.success()
+                null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val error = SyncError.of(e)
-                settings.lastError = error
-                if (error.kind.retry) ListenableWorker.Result.retry() else ListenableWorker.Result.failure()
+                SyncError.of(e)
             }
+            val now = System.currentTimeMillis()
+            if (backfill) {
+                settings.lastBackfill = BackfillResult(now, error)
+            } else {
+                if (error == null) settings.lastSuccessMs = now
+                settings.lastError = error
+            }
+            return when {
+                error == null -> ListenableWorker.Result.success()
+                error.kind.retry -> ListenableWorker.Result.retry()
+                else -> ListenableWorker.Result.failure()
+            }
+        }
 
         private val networkConstraint =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()

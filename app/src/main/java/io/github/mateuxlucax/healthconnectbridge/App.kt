@@ -90,7 +90,7 @@ private fun MainScreen(settings: Settings, status: DeviceStatus?, refreshKey: In
                 Toast.makeText(context, R.string.sync_scheduled, Toast.LENGTH_SHORT).show()
             }, modifier)
         } else {
-            SettingsScreen(settings, status, actions, modifier)
+            SettingsScreen(settings, status, refreshKey, actions, modifier)
         }
     }
 }
