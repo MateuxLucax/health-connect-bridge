@@ -245,6 +245,7 @@ class EndToEndTest {
         val icon: UiObject2 = requireNotNull(device.wait(Until.findObject(By.text("Health Connect Bridge")), 10_000)) {
             "app icon not found in the launcher's app drawer"
         }
+        val launcher = icon.applicationPackage
         Thread.sleep(1_000)
         val screen = instrumentation.uiAutomation.takeScreenshot()
         val pad = 24
@@ -253,7 +254,7 @@ class EndToEndTest {
             intersect(0, 0, screen.width, screen.height)
         }
         device.pressHome()
-        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height()) to icon.applicationPackage
+        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height()) to launcher
     }
 
     /** Writes a PNG to [SCREENSHOT_DIR], which survives the app being uninstalled after the run. */
