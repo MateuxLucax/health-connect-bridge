@@ -81,6 +81,8 @@ Interval records (steps, distance, calories) are the amount in that interval, st
 
 Skin temperature is skipped on devices whose Health Connect version doesn't support it.
 
+Edited records keep their old value in Prometheus: a sample is identified by its timestamp (interval and session start, or the sleep session's end) and labels, so the edited value arrives at the same timestamp and Prometheus rejects it as a duplicate.
+
 ## Server API
 
 ```
