@@ -27,13 +27,17 @@ class HealthSync(
         val types = readableTypes(client)
         val typesKey = types.map { it.java.simpleName }.sorted().joinToString(",")
 
-        var token = settings.changesToken?.takeIf { settings.changesTypes == typesKey }
-            ?: initialRead(client, types, typesKey, reinitDays())
+        val saved = settings.changesToken?.takeIf { settings.changesTypes == typesKey }
+        // Whether the token was taken during this run; such a token can't legitimately be expired.
+        var fresh = saved == null
+        var token = saved ?: initialRead(client, types, typesKey, reinitDays())
 
         while (true) {
             val response = client.getChanges(token)
             if (response.changesTokenExpired) {
+                check(!fresh) { "Health Connect reported a new changes token as expired" }
                 token = initialRead(client, types, typesKey, EXPIRED_TOKEN_DAYS)
+                fresh = true
                 continue
             }
             // DeletionChange is ignored: Prometheus cannot delete samples.

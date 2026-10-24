@@ -247,6 +247,20 @@ class HealthSyncTest {
     }
 
     @Test
+    fun expiredTokenReturnedRepeatedly_failsInsteadOfLooping() {
+        initialize("t1")
+        client.issuedTokens += listOf("n1", "n2", "n3")
+        client.changesHandler = { expired() }
+
+        val error = runExpectingFailure()
+
+        assertTrue(error is IllegalStateException)
+        assertEquals(1, client.calls.count { it == "getChangesToken" })
+        assertEquals(listOf("getChanges:t1", "getChanges:n1"), changesCalls())
+        assertEquals("n1", settings.changesToken)
+    }
+
+    @Test
     fun grantedTypesChanged_reinitializes() {
         client.granted = permissionsFor(StepsRecord::class)
         initialize("t1")
