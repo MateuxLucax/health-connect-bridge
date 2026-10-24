@@ -75,8 +75,10 @@ jobs:
           arch: x86_64
           cores: 4
           ram-size: 4096M
+          disk-size: 8G
           emulator-boot-timeout: 900
           script: |
+            sleep 60 # let the freshly booted system settle (package manager restarts during first boot)
             adb shell settings put global sysui_demo_allowed 1 || true
             adb shell am broadcast -a com.android.systemui.demo -e command enter || true
             adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1000 || true

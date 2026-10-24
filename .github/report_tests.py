@@ -42,3 +42,6 @@ if total == 0 and os.path.exists(log_path):
             keep += lines[i:i + 20]
     print(f"::error title=Gradle output::{esc(chr(10).join(keep[-60:]) or chr(10).join(lines[-60:]))}")
     print(f"::error title=Gradle output (end)::{esc(chr(10).join(lines[-40:]))}")
+
+# Gradle can pass without running anything (e.g. the APK failed to install), so no tests is a failure.
+sys.exit(1 if failed or total == 0 else 0)
