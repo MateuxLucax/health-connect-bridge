@@ -1,4 +1,6 @@
-# Health Connect Bridge
+<p align="center"><img src="docs/icon.png" width="112" alt="Health Connect Bridge icon"></p>
+
+<h1 align="center">Health Connect Bridge</h1>
 
 Android app that reads your health data from [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) in the background and sends it, already mapped to Prometheus metric names, to [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter), which writes it to Prometheus with the original timestamps.
 
@@ -6,25 +8,30 @@ Built for a Galaxy Watch + Samsung Health setup, but it works with any app that 
 
 ## Screenshots
 
-| Home | Dark theme | Error | Settings |
-|---|---|---|---|
-| ![Home after a sync](docs/screenshots/home-light.png) | ![Home, dark theme](docs/screenshots/home-dark.png) | ![Home with a rejected token](docs/screenshots/home-error.png) | ![Settings](docs/screenshots/settings.png) |
+<table>
+<tr><th>Home</th><th>Dark theme</th><th>Error</th><th>Settings</th></tr>
+<tr><td><img src="docs/screenshots/home-light.png" width="180" alt="Home after a sync"></td><td><img src="docs/screenshots/home-dark.png" width="180" alt="Home, dark theme"></td><td><img src="docs/screenshots/home-error.png" width="180" alt="Home with a rejected token"></td><td><img src="docs/screenshots/settings.png" width="180" alt="Settings"></td></tr>
+</table>
 
 First launch walks through five steps:
 
-| Welcome | Server | Permissions | Battery | History |
-|---|---|---|---|---|
-| ![Welcome](docs/screenshots/onboarding-1-welcome.png) | ![Server](docs/screenshots/onboarding-2-server.png) | ![Permissions](docs/screenshots/onboarding-3-permissions.png) | ![Battery](docs/screenshots/onboarding-4-battery.png) | ![History](docs/screenshots/onboarding-5-history.png) |
-
-Launcher icon: ![Launcher icon](docs/screenshots/launcher-icon.png)
+<table>
+<tr><th>Welcome</th><th>Server</th><th>Permissions</th><th>Battery</th><th>History</th></tr>
+<tr><td><img src="docs/screenshots/onboarding-1-welcome.png" width="180" alt="Welcome"></td><td><img src="docs/screenshots/onboarding-2-server.png" width="180" alt="Server"></td><td><img src="docs/screenshots/onboarding-3-permissions.png" width="180" alt="Permissions"></td><td><img src="docs/screenshots/onboarding-4-battery.png" width="180" alt="Battery"></td><td><img src="docs/screenshots/onboarding-5-history.png" width="180" alt="History"></td></tr>
+</table>
 
 Taken on an emulator by the integration test (see [Building](#building)) and refreshed on every push to `main`.
 
 ## Architecture
 
 ```
-Galaxy Watch -> Samsung Health -> Health Connect -> Health Connect Bridge (this app)
-    -> POST /api/v1/samples -> health-connect-prometheus-exporter -> Prometheus (remote write)
+Galaxy Watch
+  └─> Samsung Health
+        └─> Health Connect
+              └─> Health Connect Bridge (this app)
+                    └─> POST /api/v1/samples
+                          └─> health-connect-prometheus-exporter
+                                └─> Prometheus (remote write)
 ```
 
 - A WorkManager job runs every 15 minutes when there is network.
