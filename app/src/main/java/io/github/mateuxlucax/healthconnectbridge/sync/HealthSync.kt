@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.healthconnectbridge.sync
 
-import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
@@ -13,7 +12,6 @@ import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnec
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.toSamples
 import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
 import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
-import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
 import io.github.mateuxlucax.healthconnectbridge.model.SetupException
@@ -31,14 +29,6 @@ class HealthSync(
     private val localNetworkBlocked: suspend (String) -> Boolean = { false },
     private val clientFactory: () -> HealthConnectClient,
 ) {
-    constructor(context: Context, settings: SettingsStore, lastValues: LastValues, exporter: ExporterClient) : this(
-        settings,
-        lastValues,
-        exporter,
-        { LocalNetwork.isBlocked(context, it) },
-        { HealthConnectAccess.client(context) },
-    )
-
     /**
      * Changes-API sync. Only advances the checkpoint after each successful upload. Returns how many unreadable
      * stretches of records were skipped (see [readRange]).

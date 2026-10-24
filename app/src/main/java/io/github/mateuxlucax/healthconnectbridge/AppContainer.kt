@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.mateuxlucax.healthconnectbridge.data.DeviceStatusRepository
 import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
+import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
 import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
 import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
@@ -32,14 +33,16 @@ class AppContainer(context: Context) {
     val syncScheduler = SyncScheduler(appContext, SyncWorker::class.java)
     val deviceStatusRepository = DeviceStatusRepository(appContext, settings)
 
-    /** A sync engine reading the real Health Connect; used by [SyncWorker]. */
-    fun healthSync() = HealthSync(appContext, settings, lastValues, exporterClient)
-
     /**
-     * Whether Android 17 local network protection would block connecting to a URL. Bound to the application
-     * context, so the screens' ViewModels can hold it.
+     * Whether Android 17 local network protection would block connecting to a URL; used by the sync, [SyncWorker]
+     * and the screens' ViewModels. Bound to the application context, so ViewModels can hold it.
      */
     val localNetworkBlocked: suspend (String) -> Boolean = { url -> LocalNetwork.isBlocked(appContext, url) }
+
+    /** A sync engine reading the real Health Connect; used by [SyncWorker]. */
+    fun healthSync() = HealthSync(settings, lastValues, exporterClient, localNetworkBlocked) {
+        HealthConnectAccess.client(appContext)
+    }
 
     /** Creates the screens' ViewModels with their dependencies. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
