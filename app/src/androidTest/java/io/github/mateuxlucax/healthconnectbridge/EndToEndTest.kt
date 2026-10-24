@@ -25,6 +25,7 @@ import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -94,7 +95,7 @@ class EndToEndTest {
         assertEquals(0L, settings.lastSuccessMs)
         assertNull(settings.changesToken)
         assertEquals(0, query("""{__name__=~"health_.+"}[30d]""").length())
-        screenshot("home-error")
+        screenshot("home-error") { text(it, R.string.error_title) }
 
         // Right token: the first run reads the last 7 days.
         settings.token = token
@@ -109,16 +110,27 @@ class EndToEndTest {
         client.insertRecords(
             listOf(WeightRecord(time = weightTime, zoneOffset = null, weight = Mass.kilograms(72.5), metadata = meta()))
         )
-        sync()
+        // This one goes through the real WorkManager path ("Sync now").
+        SyncWorker.syncNow(context)
+        val work = waitUntil("the sync-now work to finish", 60_000) {
+            WorkManager.getInstance(context).getWorkInfosForUniqueWork("sync-now").get()
+                .firstOrNull()?.takeIf { it.state.isFinished }
+        }
+        assertEquals(WorkInfo.State.SUCCEEDED, work.state)
         assertNull(settings.lastError)
         assertEquals(mapOf(labels() to listOf(weightTime to 72.5)), series("health_weight_kg"))
         assertExpectedSeries("health_weight_kg")
 
-        screenshot("home-light")
-        screenshot("settings") { click(text(it, R.string.tab_settings)) }
+        screenshot("home-light") { text(it, R.string.status_ok) }
+        val permissions = HealthSync.requestedPermissions(client).size
+        screenshot("settings", action = { click(text(it, R.string.tab_settings)) }) {
+            resources(it).getQuantityString(R.plurals.permissions_all, permissions, permissions)
+        }
         shell("cmd uimode night yes")
-        Thread.sleep(2_000)
-        screenshot("home-dark")
+        waitUntil("night mode") {
+            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        }
+        screenshot("home-dark") { text(it, R.string.status_ok) }
         shell("cmd uimode night no")
         setAppLocale(LANGUAGES.first())
     }
@@ -240,14 +252,15 @@ class EndToEndTest {
 
     private val device: UiDevice get() = UiDevice.getInstance(instrumentation)
 
-    /** In each language: opens the app, runs [action], then saves a screenshot. */
-    private fun screenshot(name: String, action: (Language) -> Unit = {}) {
+    /** In each language: opens the app, runs [action], waits for the text from [ready], then saves a screenshot. */
+    private fun screenshot(name: String, action: (Language) -> Unit = {}, ready: (Language) -> String) {
         for (language in LANGUAGES) {
             setAppLocale(language)
             ActivityScenario.launch(MainActivity::class.java).use {
-                Thread.sleep(2_000) // state is loaded asynchronously
+                waitFor(text(language, R.string.sync_now))
                 action(language)
-                Thread.sleep(1_000)
+                waitFor(ready(language))
+                device.waitForIdle()
                 save(language.dir + name, instrumentation.uiAutomation.takeScreenshot())
             }
         }
@@ -274,11 +287,13 @@ class EndToEndTest {
             shot("onboarding-3-permissions")
             click(t(R.string.next))
             step(4)
-            Thread.sleep(1_000)
+            waitForAny(t(R.string.battery_optimized), t(R.string.battery_exempt)) // device status loaded
+            device.waitForIdle()
             shot("onboarding-4-battery")
             click(t(R.string.skip))
             step(5)
-            Thread.sleep(1_000)
+            waitFor(t(R.string.import_history))
+            device.waitForIdle()
             shot("onboarding-5-history")
             click(t(R.string.finish))
             waitFor(t(R.string.sync_now))
@@ -288,10 +303,17 @@ class EndToEndTest {
     /** Sets the app's own language (Android 13+ per-app languages) and waits until the app sees it. */
     private fun setAppLocale(language: Language) {
         shell("cmd locale set-app-locales $source --locales ${language.tag}")
-        val deadline = System.currentTimeMillis() + 10_000
-        while (context.resources.configuration.locales[0].toLanguageTag() != language.tag &&
-            System.currentTimeMillis() < deadline
-        ) {
+        waitUntil("app locale ${language.tag}") {
+            context.resources.configuration.locales[0].toLanguageTag() == language.tag
+        }
+    }
+
+    /** Polls [condition] until it returns a non-null, non-false value. */
+    private fun <T : Any> waitUntil(what: String, timeoutMs: Long = 10_000, condition: () -> T?): T {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            condition()?.takeIf { it != false }?.let { return it }
+            if (System.currentTimeMillis() > deadline) throw AssertionError("timed out waiting for $what")
             Thread.sleep(200)
         }
     }
@@ -303,11 +325,26 @@ class EndToEndTest {
     private fun text(language: Language, id: Int, vararg args: Any): String =
         if (args.isEmpty()) resources(language).getString(id) else resources(language).getString(id, *args)
 
-    private fun waitFor(text: String, timeoutMs: Long = 10_000): UiObject2 =
-        device.wait(Until.findObject(By.text(text)), timeoutMs)
-            ?: throw AssertionError("\"$text\" not found; on screen: " + screenTexts())
+    private fun waitFor(text: String, timeoutMs: Long = 10_000): UiObject2 = waitForAny(text, timeoutMs = timeoutMs)
 
-    private fun screenTexts(): List<String> = device.findObjects(By.textContains("")).map { it.text }
+    /**
+     * Waits until one of [texts] is on screen. Polls the same node list [screenTexts] reports, since
+     * Until.findObject(By.text(...)) sometimes missed Compose texts that were visibly there.
+     */
+    private fun waitForAny(vararg texts: String, timeoutMs: Long = 10_000): UiObject2 {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            val match = runCatching { device.findObjects(By.textContains("")).firstOrNull { it.text in texts } }.getOrNull()
+            if (match != null) return match
+            if (System.currentTimeMillis() > deadline) {
+                throw AssertionError(texts.joinToString(" or ") { "\"$it\"" } + " not found; on screen: " + screenTexts())
+            }
+            Thread.sleep(250)
+        }
+    }
+
+    private fun screenTexts(): List<String> =
+        runCatching { device.findObjects(By.textContains("")).mapNotNull { it.text } }.getOrDefault(emptyList())
 
     private fun click(text: String) {
         waitFor(text).click()
@@ -328,7 +365,7 @@ class EndToEndTest {
             val toggle = device.wait(Until.findObject(By.textContains("Themed icons")), 3_000)
             if (toggle != null) {
                 toggle.click()
-                Thread.sleep(3_000)
+                device.waitForIdle(3_000)
                 device.pressHome()
                 return true
             }
@@ -346,7 +383,7 @@ class EndToEndTest {
         val icon: UiObject2 = requireNotNull(device.wait(Until.findObject(By.text("Health Connect Bridge")), 10_000)) {
             "app icon not found in the launcher's app drawer"
         }
-        Thread.sleep(1_000)
+        device.waitForIdle()
         val screen = instrumentation.uiAutomation.takeScreenshot()
         val pad = 24
         val r = Rect(icon.visibleBounds).apply {
