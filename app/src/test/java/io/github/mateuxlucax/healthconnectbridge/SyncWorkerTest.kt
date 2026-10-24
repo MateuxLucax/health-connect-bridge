@@ -26,7 +26,7 @@ class SyncWorkerTest {
 
     @Test
     fun success() {
-        settings.lastError = "old error"
+        settings.lastError = SyncError(SyncError.Kind.SERVER, "old error")
         val before = System.currentTimeMillis()
         val result = runWith(uploadOne)
         assertTrue(result is ListenableWorker.Result.Success)
