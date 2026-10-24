@@ -29,7 +29,7 @@ class SettingsViewModelTest {
     private val settings = SettingsStore(InMemoryPrefs())
     private val backfills = mutableListOf<Int>()
     /** Created in the test, after [main] replaced Dispatchers.Main. */
-    private val vm by lazy { SettingsViewModel(settings, ExporterClient()) { backfills += it } }
+    private val vm by lazy { SettingsViewModel(settings, ExporterClient(), { backfills += it }) }
 
     @After
     fun tearDown() = server.close()
