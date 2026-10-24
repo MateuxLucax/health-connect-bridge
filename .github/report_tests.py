@@ -35,5 +35,8 @@ if len(failures) > 9:
 if total == 0 and os.path.exists(log_path):
     # No results usually means compilation failed: show the relevant Gradle output.
     lines = open(log_path, errors="replace").read().splitlines()
-    keep = [l for l in lines if l.startswith("e: ") or "error:" in l or "What went wrong" in l or "FAILED" in l]
+    keep = [l for l in lines if l.startswith("e: ") or "error:" in l or "FAILED" in l]
+    for i, l in enumerate(lines):
+        if "What went wrong" in l:
+            keep += lines[i:i + 20]
     print(f"::error title=Gradle output::{esc(chr(10).join(keep[-60:]) or chr(10).join(lines[-60:]))}")
