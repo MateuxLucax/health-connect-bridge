@@ -30,15 +30,10 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
-import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
-import io.github.mateuxlucax.healthconnectbridge.sync.HealthSync
 import io.github.mateuxlucax.healthconnectbridge.sync.SyncRunner
-import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -66,7 +61,9 @@ class EndToEndTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
     private val source = context.packageName
-    private val settings = Settings(context)
+    /** The app's own object graph (the test runs in the app's process, with its BridgeApplication). */
+    private val container = (context.applicationContext as BridgeApplication).container
+    private val settings = container.settings
     /** The app's preferences file, by its persisted name. */
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val client = HealthConnectClient.getOrCreate(context)
@@ -132,7 +129,7 @@ class EndToEndTest {
             listOf(WeightRecord(time = weightTime, zoneOffset = null, weight = Mass.kilograms(72.5), metadata = meta()))
         )
         // This one goes through the real WorkManager path ("Sync now").
-        SyncScheduler(context, SyncWorker::class.java).syncNow()
+        container.syncScheduler.syncNow()
         val work = waitUntil("the sync-now work to finish", 60_000) {
             WorkManager.getInstance(context).getWorkInfosForUniqueWork("sync-now").get()
                 .firstOrNull()?.takeIf { it.state.isFinished }
@@ -169,7 +166,7 @@ class EndToEndTest {
     }
 
     private suspend fun sync() = SyncRunner.runAndReport(settings) {
-        HealthSync(context, settings, LastValues(context), ExporterClient()).incremental()
+        container.healthSync().incremental()
     }
 
     private fun meta() = Metadata.manualEntry()

@@ -58,10 +58,15 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.material3:material3")
+    // ViewModel factories in Compose (viewModel()) and lifecycle-aware state collection (ADR 0004, ADR 0013).
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
 
     testImplementation("junit:junit:4.13.2")
     // android.jar only ships a stub of org.json; JVM tests need the real implementation.
     testImplementation("org.json:json:20250517")
+    // Dispatchers.setMain and runTest for ViewModel tests.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")

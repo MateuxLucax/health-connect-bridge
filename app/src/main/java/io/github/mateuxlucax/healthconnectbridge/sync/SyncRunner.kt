@@ -1,20 +1,20 @@
 package io.github.mateuxlucax.healthconnectbridge.sync
 
 import androidx.work.ListenableWorker
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.model.BackfillResult
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Runs one sync for the worker: one run at a time, outcome recorded in [Settings], mapped to a WorkManager result. */
+/** Runs one sync for the worker: one run at a time, outcome recorded in [SettingsStore], mapped to a WorkManager result. */
 object SyncRunner {
     private val mutex = Mutex()
 
     /** A backfill of [backfillDays] when positive, the incremental sync otherwise; runs never overlap. */
     suspend fun run(
-        settings: Settings,
+        settings: SettingsStore,
         sync: HealthSync,
         backfillDays: Int,
         localNetworkBlocked: suspend () -> Boolean = { false },
@@ -22,7 +22,7 @@ object SyncRunner {
 
     /** [run] without the lock. */
     internal suspend fun runSync(
-        settings: Settings,
+        settings: SettingsStore,
         sync: HealthSync,
         backfillDays: Int,
         localNetworkBlocked: suspend () -> Boolean = { false },
@@ -37,11 +37,11 @@ object SyncRunner {
 
     /**
      * Runs [sync], records the outcome in [settings] and maps it to a WorkManager result. Only incremental
-     * runs set the last success and error shown on Home; a backfill is reported as [Settings.lastBackfill].
+     * runs set the last success and error shown on Home; a backfill is reported as [SettingsStore.lastBackfill].
      * [localNetworkBlocked] turns a connect failure into [SyncError.Kind.LOCAL_NETWORK_PERMISSION].
      */
     internal suspend fun runAndReport(
-        settings: Settings,
+        settings: SettingsStore,
         backfill: Boolean = false,
         localNetworkBlocked: suspend () -> Boolean = { false },
         sync: suspend () -> Unit,

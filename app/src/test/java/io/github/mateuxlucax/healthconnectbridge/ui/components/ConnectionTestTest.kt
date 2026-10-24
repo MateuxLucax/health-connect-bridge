@@ -30,12 +30,12 @@ class ConnectionTestTest {
         test.run(hangingUrl, "t")
         delay(300)
         test.run(server.url, "t")
-        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
-        assertEquals(true, test.result?.ok)
+        withTimeout(10_000) { while (test.result.value?.ok == null) delay(20) }
+        assertEquals(true, test.result.value?.ok)
 
         hanging.close() // the first request now fails
         delay(1_000)
-        assertEquals(true, test.result?.ok)
+        assertEquals(true, test.result.value?.ok)
     }
 
     @Test
@@ -46,34 +46,34 @@ class ConnectionTestTest {
         test.clear()
         hanging.close()
         delay(1_000)
-        assertNull(test.result)
+        assertNull(test.result.value)
     }
 
     @Test
     fun invalidUrlFailsWithoutARequest() = runBlocking {
         val test = ConnectionTest(this)
         test.run("ftp://example.com", "t")
-        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
-        assertEquals(SyncError(SyncError.Kind.INVALID_URL), test.result?.error)
+        withTimeout(10_000) { while (test.result.value?.ok == null) delay(20) }
+        assertEquals(SyncError(SyncError.Kind.INVALID_URL), test.result.value?.error)
     }
 
     @Test
     fun deniedLocalNetworkFailsWithoutARequest() = runBlocking {
         var checkedUrl: String? = null
-        val test = ConnectionTest(this) { checkedUrl = it; false }
-        test.run(" ${server.url} ", "t")
-        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
-        assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), test.result?.error)
+        val test = ConnectionTest(this)
+        test.run(" ${server.url} ", "t") { checkedUrl = it; false }
+        withTimeout(10_000) { while (test.result.value?.ok == null) delay(20) }
+        assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), test.result.value?.error)
         assertEquals(server.url, checkedUrl)
         assertEquals(0, server.requests.size)
     }
 
     @Test
     fun grantedLocalNetworkConnects() = runBlocking {
-        val test = ConnectionTest(this) { true }
-        test.run(server.url, "t")
-        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
-        assertEquals(true, test.result?.ok)
+        val test = ConnectionTest(this)
+        test.run(server.url, "t") { true }
+        withTimeout(10_000) { while (test.result.value?.ok == null) delay(20) }
+        assertEquals(true, test.result.value?.ok)
         assertEquals(1, server.requests.size)
     }
 }

@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import io.github.mateuxlucax.healthconnectbridge.model.LastValue
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
-/** Newest uploaded value per metric, kept as a small JSON object in the same SharedPreferences as [Settings]. */
+/** Newest uploaded value per metric, kept as a small JSON object in the same SharedPreferences as [SettingsStore]. */
 class LastValues(private val prefs: SharedPreferences) {
-    constructor(context: Context) : this(Settings.open(context))
+    constructor(context: Context) : this(SettingsStore.open(context))
 
     fun record(samples: List<Sample>) {
         if (samples.isEmpty()) return
@@ -32,6 +34,10 @@ class LastValues(private val prefs: SharedPreferences) {
             runCatching { LastValue(metric, label, entry.getDouble("v"), entry.getLong("t")) }.getOrNull()
         }.toList()
     }
+
+    /** [all] now and after every upload that changes it. */
+    val values: Flow<List<LastValue>>
+        get() = prefs.changes(setOf(KEY)).map { all() }
 
     /** The stored JSON, or an empty object when it is missing or corrupt: this is only a display cache. */
     private fun load() = prefs.getString(KEY, null)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()

@@ -14,9 +14,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,12 +25,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.healthconnectbridge.BuildConfig
 import io.github.mateuxlucax.healthconnectbridge.R
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
-import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import io.github.mateuxlucax.healthconnectbridge.ui.AppActions
 import io.github.mateuxlucax.healthconnectbridge.ui.components.BatteryState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.BodyText
@@ -41,27 +40,25 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.SectionCard
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
-import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberConnectionTest
 import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
 import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
-    settings: Settings,
-    scheduler: SyncScheduler,
+    viewModel: SettingsViewModel,
     status: DeviceStatus?,
     statusFailed: Boolean,
-    refreshKey: Int,
-    syncKey: Int,
     actions: AppActions,
     modifier: Modifier = Modifier,
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
-    var token by rememberSaveable { mutableStateOf(settings.token) }
+    var url by rememberSaveable { mutableStateOf(viewModel.savedServerUrl) }
+    var token by rememberSaveable { mutableStateOf(viewModel.savedToken) }
     val scope = rememberCoroutineScope()
     val localNetworkAccess = rememberLocalNetworkAccess(actions)
-    val test = rememberConnectionTest(localNetworkAccess)
+    // Like the form, the test result belongs to this visit of the tab.
+    DisposableEffect(viewModel) { onDispose { viewModel.clearTest() } }
     val filled = ServerUrl.isValid(url) && token.isNotBlank()
 
     Column(
@@ -69,16 +66,15 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SectionCard(stringResource(R.string.section_server)) {
-            ServerFields(url, { url = it; test.clear() }, token, { token = it; test.clear() })
+            ServerFields(url, { url = it; viewModel.clearTest() }, token, { token = it; viewModel.clearTest() })
             LocalNetworkNotice(url, status, actions)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { test.run(url, token) }, enabled = filled, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { viewModel.testConnection(url, token, localNetworkAccess) }, enabled = filled, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.test_connection))
                 }
                 Button(
                     onClick = {
-                        settings.serverUrl = url.trim()
-                        settings.token = token.trim()
+                        viewModel.save(url, token)
                         Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
                         // Saved either way; a denial stays visible in the notice above and on Home.
                         scope.launch { localNetworkAccess(url.trim()) }
@@ -87,13 +83,12 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.save)) }
             }
-            TestResultLine(test.result, actions.openAppSettings)
+            TestResultLine(state.testResult, actions.openAppSettings)
         }
 
         SectionCard(stringResource(R.string.section_history)) {
             BodyText(stringResource(R.string.history_settings_text))
-            val lastBackfill = remember(refreshKey, syncKey) { settings.lastBackfill }
-            HistoryImport(lastBackfill) { scheduler.backfill(it) }
+            HistoryImport(state.lastBackfill) { viewModel.importHistory(it) }
         }
 
         SectionCard(stringResource(R.string.section_permissions)) {

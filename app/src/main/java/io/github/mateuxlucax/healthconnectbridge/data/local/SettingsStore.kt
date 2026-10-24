@@ -4,9 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import io.github.mateuxlucax.healthconnectbridge.model.BackfillResult
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
+import io.github.mateuxlucax.healthconnectbridge.model.SyncState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /** User settings and sync checkpoint, persisted in SharedPreferences. */
-class Settings(private val prefs: SharedPreferences) {
+class SettingsStore(private val prefs: SharedPreferences) {
     constructor(context: Context) : this(open(context))
 
     var serverUrl: String
@@ -71,24 +75,23 @@ class Settings(private val prefs: SharedPreferences) {
             (serverUrl.isNotBlank() && token.isNotBlank() && changesToken != null)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
-    /** Calls [onChange] whenever a sync writes state that the screens show, until the returned handle is closed. */
-    fun observeSyncState(onChange: () -> Unit): AutoCloseable {
-        // SharedPreferences keeps listeners weakly: the returned handle holds this one.
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key -> if (key in SYNC_STATE_KEYS) onChange() }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        return AutoCloseable { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
+    /** The current [SyncState]. */
+    fun currentSyncState(): SyncState = SyncState(lastSuccessMs, lastError, lastBackfill)
+
+    /** The [SyncState] now and after every sync that changes it. */
+    val syncState: Flow<SyncState>
+        get() = prefs.changes(SYNC_STATE_KEYS).map { currentSyncState() }.distinctUntilChanged()
 
     companion object {
         /** File name of the app's SharedPreferences; existing installs depend on it. */
         private const val FILE_NAME = "settings"
 
-        /** The preferences file shared by [Settings] and [LastValues]. */
+        /** The preferences file shared by [SettingsStore] and [LastValues]. */
         fun open(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
-        /** Keys written by syncs and shown by the screens; other writes don't need a refresh. */
+        /** Keys of the [SyncState]: written by syncs and shown by the screens. */
         internal val SYNC_STATE_KEYS get() = setOf(
-            KEY_LAST_SUCCESS, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL, LastValues.KEY,
+            KEY_LAST_SUCCESS, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL,
             KEY_BACKFILL_FINISHED, KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL,
         )
 

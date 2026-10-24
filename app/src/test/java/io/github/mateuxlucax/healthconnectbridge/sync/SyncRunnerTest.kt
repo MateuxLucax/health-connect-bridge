@@ -7,7 +7,7 @@ import androidx.work.ListenableWorker
 import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
 import io.github.mateuxlucax.healthconnectbridge.data.exporter.HttpStatusException
 import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
 import io.github.mateuxlucax.healthconnectbridge.model.SetupException
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
@@ -30,7 +30,7 @@ import java.net.SocketTimeoutException
 class SyncRunnerTest {
     private val server = FakeServer()
     private val prefs = InMemoryPrefs()
-    private val settings = Settings(prefs)
+    private val settings = SettingsStore(prefs)
     private val lastValues = LastValues(prefs)
     private val exporter = ExporterClient()
 

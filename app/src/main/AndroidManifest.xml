@@ -32,6 +32,7 @@
 
     <!-- No backups (Android 11 and lower); dataExtractionRules covers Android 12+. -->
     <application
+        android:name=".BridgeApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"

@@ -12,7 +12,7 @@ import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.toSamples
 import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
@@ -24,14 +24,14 @@ import kotlin.reflect.KClass
 
 /** Reads Health Connect and uploads mapped samples to the exporter. */
 class HealthSync(
-    private val settings: Settings,
+    private val settings: SettingsStore,
     private val lastValues: LastValues,
     private val exporter: ExporterClient = ExporterClient(),
     /** Whether connecting to the server URL would be blocked by Android 17 local network protection. */
     private val localNetworkBlocked: suspend (String) -> Boolean = { false },
     private val clientFactory: () -> HealthConnectClient,
 ) {
-    constructor(context: Context, settings: Settings, lastValues: LastValues, exporter: ExporterClient) : this(
+    constructor(context: Context, settings: SettingsStore, lastValues: LastValues, exporter: ExporterClient) : this(
         settings,
         lastValues,
         exporter,

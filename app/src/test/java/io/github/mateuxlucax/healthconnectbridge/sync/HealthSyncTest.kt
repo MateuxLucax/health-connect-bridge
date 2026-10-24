@@ -14,7 +14,7 @@ import androidx.health.connect.client.response.ReadRecordsResponse
 import androidx.health.connect.client.units.Mass
 import io.github.mateuxlucax.healthconnectbridge.data.exporter.HttpStatusException
 import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.model.SetupException
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
 import io.github.mateuxlucax.healthconnectbridge.testing.FakeHealthConnectClient
@@ -38,7 +38,7 @@ import kotlin.reflect.KClass
 class HealthSyncTest {
     private val server = FakeServer()
     private val prefs = InMemoryPrefs()
-    private val settings = Settings(prefs)
+    private val settings = SettingsStore(prefs)
     private val lastValues = LastValues(prefs)
     private val client = FakeHealthConnectClient(granted = permissionsFor(StepsRecord::class, WeightRecord::class))
     private val sync = HealthSync(settings, lastValues) { client }

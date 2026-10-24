@@ -1,5 +1,6 @@
 package io.github.mateuxlucax.healthconnectbridge.ui.home
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,13 +30,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import io.github.mateuxlucax.healthconnectbridge.R
-import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
 import io.github.mateuxlucax.healthconnectbridge.model.LastValue
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
@@ -55,25 +59,28 @@ import java.time.ZoneId
 
 @Composable
 fun HomeScreen(
-    settings: Settings,
-    lastValues: LastValues,
+    viewModel: HomeViewModel,
     status: DeviceStatus?,
-    refreshKey: Int,
-    syncKey: Int,
     actions: AppActions,
-    onSyncNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val onSyncNow = {
+        viewModel.syncNow()
+        Toast.makeText(context, R.string.sync_scheduled, Toast.LENGTH_SHORT).show()
+    }
+    // Relative times ("5 min ago") are refreshed on resume and every 30 seconds while shown.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(refreshKey) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(30_000)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                now = System.currentTimeMillis()
+                delay(30_000)
+            }
         }
     }
-    val lastSuccess = remember(refreshKey, syncKey) { settings.lastSuccessMs }
-    val lastError = remember(refreshKey, syncKey) { settings.lastError }
-    val values = remember(refreshKey, syncKey) { lastValues.all() }
     val zone = ZoneId.systemDefault()
     val format = rememberFormat()
 
@@ -81,8 +88,8 @@ fun HomeScreen(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        SyncCard(lastSuccess, lastError, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow)
-        ExportedValues(values, now, zone, format)
+        SyncCard(state.lastSuccessMs, state.lastError, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow)
+        ExportedValues(state.values, now, zone, format)
     }
 }
 

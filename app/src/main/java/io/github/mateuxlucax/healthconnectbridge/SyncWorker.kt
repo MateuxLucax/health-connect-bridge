@@ -3,11 +3,6 @@ package io.github.mateuxlucax.healthconnectbridge
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
-import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
-import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
-import io.github.mateuxlucax.healthconnectbridge.sync.HealthSync
 import io.github.mateuxlucax.healthconnectbridge.sync.SyncRunner
 import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 
@@ -21,10 +16,10 @@ import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val settings = Settings(applicationContext)
-        val sync = HealthSync(applicationContext, settings, LastValues(applicationContext), ExporterClient())
-        return SyncRunner.run(settings, sync, SyncScheduler.backfillDays(inputData)) {
-            LocalNetwork.isBlocked(applicationContext, settings.serverUrl)
+        val container = (applicationContext as BridgeApplication).container
+        val settings = container.settings
+        return SyncRunner.run(settings, container.healthSync(), SyncScheduler.backfillDays(inputData)) {
+            container.localNetworkBlocked(settings.serverUrl)
         }
     }
 }

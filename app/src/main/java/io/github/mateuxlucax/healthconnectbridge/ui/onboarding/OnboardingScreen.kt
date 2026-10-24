@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,11 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.mateuxlucax.healthconnectbridge.R
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
-import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import io.github.mateuxlucax.healthconnectbridge.ui.AppActions
 import io.github.mateuxlucax.healthconnectbridge.ui.components.BatteryState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.BodyText
@@ -56,36 +56,34 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.Logo
 import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
-import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberConnectionTest
+import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
+import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.BATTERY_STEP
+import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.PERMISSIONS_STEP
+import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.SERVER_STEP
+import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.STEPS
 import kotlinx.coroutines.launch
-
-private const val STEPS = 5
 
 /** First-launch setup: welcome, server, permissions, battery, history. */
 @Composable
 fun OnboardingScreen(
-    settings: Settings,
-    scheduler: SyncScheduler,
+    viewModel: OnboardingViewModel,
     status: DeviceStatus?,
     statusFailed: Boolean,
     actions: AppActions,
     onFinish: () -> Unit,
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var step by rememberSaveable { mutableIntStateOf(0) }
-    var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
-    var token by rememberSaveable { mutableStateOf(settings.token) }
+    var url by rememberSaveable { mutableStateOf(viewModel.savedServerUrl) }
+    var token by rememberSaveable { mutableStateOf(viewModel.savedToken) }
     BackHandler(enabled = step > 0) { step-- }
     val scope = rememberCoroutineScope()
     val localNetworkAccess = rememberLocalNetworkAccess(actions)
 
-    val canContinue = when (step) {
-        1 -> ServerUrl.isValid(url) && token.isNotBlank()
-        2 -> (status?.grantedReads ?: 0) > 0
-        else -> true
-    }
+    val canContinue = viewModel.canContinue(step, url, token, status)
     val nextLabel = when (step) {
-        3 -> if (status?.batteryExempt == true) R.string.next else R.string.skip
+        BATTERY_STEP -> if (status?.batteryExempt == true) R.string.next else R.string.skip
         STEPS - 1 -> R.string.finish
         else -> R.string.next
     }
@@ -98,15 +96,15 @@ fun OnboardingScreen(
                 nextEnabled = canContinue,
                 onBack = { step-- },
                 onNext = {
-                    if (step == 1) {
-                        settings.serverUrl = url.trim()
-                        settings.token = token.trim()
+                    if (step == SERVER_STEP) {
+                        viewModel.saveServer(url, token)
                         // Asks for local network access now, while it's clear why; a denial is shown later.
                         scope.launch {
                             localNetworkAccess(url.trim())
-                            step = 2
+                            step = PERMISSIONS_STEP
                         }
                     } else if (step == STEPS - 1) {
+                        viewModel.finish()
                         onFinish()
                     } else {
                         step++
@@ -127,10 +125,15 @@ fun OnboardingScreen(
                 Header(step)
                 when (step) {
                     0 -> WelcomeStep()
-                    1 -> ServerStep(url, { url = it }, token, { token = it }, status, actions, localNetworkAccess)
-                    2 -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
-                    3 -> BatteryStep(status, actions.requestBatteryExemption)
-                    else -> HistoryStep { scheduler.backfill(it) }
+                    SERVER_STEP -> ServerStep(
+                        url, { url = it }, token, { token = it }, status, actions,
+                        state.testResult,
+                        onTest = { viewModel.testConnection(url, token, localNetworkAccess) },
+                        onClearTest = viewModel::clearTest,
+                    )
+                    PERMISSIONS_STEP -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
+                    BATTERY_STEP -> BatteryStep(status, actions.requestBatteryExemption)
+                    else -> HistoryStep { viewModel.importHistory(it) }
                 }
             }
         }
@@ -203,19 +206,22 @@ private fun ServerStep(
     onTokenChange: (String) -> Unit,
     status: DeviceStatus?,
     actions: AppActions,
-    localNetworkAccess: suspend (String) -> Boolean,
+    testResult: TestResult?,
+    onTest: () -> Unit,
+    onClearTest: () -> Unit,
 ) {
-    val test = rememberConnectionTest(localNetworkAccess)
+    // The test result belongs to this visit of the step, like the composition-scoped test it replaces.
+    DisposableEffect(Unit) { onDispose(onClearTest) }
     StepTitle(stringResource(R.string.your_server))
     BodyText(stringResource(R.string.server_text))
-    ServerFields(url, { onUrlChange(it); test.clear() }, token, { onTokenChange(it); test.clear() })
+    ServerFields(url, { onUrlChange(it); onClearTest() }, token, { onTokenChange(it); onClearTest() })
     LocalNetworkNotice(url, status, actions)
     OutlinedButton(
-        onClick = { test.run(url, token) },
+        onClick = onTest,
         enabled = ServerUrl.isValid(url) && token.isNotBlank(),
         modifier = Modifier.fillMaxWidth(),
     ) { Text(stringResource(R.string.test_connection)) }
-    TestResultLine(test.result, actions.openAppSettings)
+    TestResultLine(testResult, actions.openAppSettings)
 }
 
 @Composable

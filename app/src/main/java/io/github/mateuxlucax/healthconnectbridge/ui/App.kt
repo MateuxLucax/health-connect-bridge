@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.healthconnectbridge.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -24,31 +23,31 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mateuxlucax.healthconnectbridge.R
 import io.github.mateuxlucax.healthconnectbridge.data.DeviceStatusRepository
-import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
-import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import io.github.mateuxlucax.healthconnectbridge.ui.components.Logo
 import io.github.mateuxlucax.healthconnectbridge.ui.home.HomeScreen
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.healthconnectbridge.ui.settings.SettingsScreen
 import kotlinx.coroutines.CancellationException
 
-/** Onboarding on first launch, then the two tabs. */
+/**
+ * Onboarding on first launch ([onboardingDone] false), then the two tabs. Each screen gets its ViewModel from
+ * [viewModelFactory]. The device status is reloaded whenever [refreshKey] changes (on resume and after
+ * permission requests).
+ */
 @Composable
 fun App(
-    settings: Settings,
-    lastValues: LastValues,
-    scheduler: SyncScheduler,
+    viewModelFactory: ViewModelProvider.Factory,
     deviceStatus: DeviceStatusRepository,
+    onboardingDone: Boolean,
     refreshKey: Int,
-    syncKey: Int,
     actions: AppActions,
 ) {
     // The last loaded status stays shown while it reloads; a failed load is shown, not hidden as "no status".
@@ -64,32 +63,23 @@ fun App(
             true
         }
     }
-    var onboardingDone by remember { mutableStateOf(settings.onboardingDone) }
+    var showMain by remember { mutableStateOf(onboardingDone) }
 
-    if (!onboardingDone) {
-        OnboardingScreen(settings, scheduler, status, statusFailed, actions) {
-            settings.onboardingDone = true
-            scheduler.schedulePeriodic()
-            onboardingDone = true
-        }
+    if (!showMain) {
+        OnboardingScreen(viewModel(factory = viewModelFactory), status, statusFailed, actions) { showMain = true }
     } else {
-        MainScreen(settings, lastValues, scheduler, status, statusFailed, refreshKey, syncKey, actions)
+        MainScreen(viewModelFactory, status, statusFailed, actions)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScreen(
-    settings: Settings,
-    lastValues: LastValues,
-    scheduler: SyncScheduler,
+    viewModelFactory: ViewModelProvider.Factory,
     status: DeviceStatus?,
     statusFailed: Boolean,
-    refreshKey: Int,
-    syncKey: Int,
     actions: AppActions,
 ) {
-    val context = LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Scaffold(
         topBar = {
@@ -122,12 +112,9 @@ private fun MainScreen(
     ) { padding ->
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding).imePadding()
         if (tab == 0) {
-            HomeScreen(settings, lastValues, status, refreshKey, syncKey, actions, onSyncNow = {
-                scheduler.syncNow()
-                Toast.makeText(context, R.string.sync_scheduled, Toast.LENGTH_SHORT).show()
-            }, modifier)
+            HomeScreen(viewModel(factory = viewModelFactory), status, actions, modifier)
         } else {
-            SettingsScreen(settings, scheduler, status, statusFailed, refreshKey, syncKey, actions, modifier)
+            SettingsScreen(viewModel(factory = viewModelFactory), status, statusFailed, actions, modifier)
         }
     }
 }

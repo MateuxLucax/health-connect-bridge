@@ -6,14 +6,14 @@ import android.os.PowerManager
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Loads the [DeviceStatus]: Health Connect, battery optimization and local network access. */
-class DeviceStatusRepository(context: Context, private val settings: Settings) {
+class DeviceStatusRepository(context: Context, private val settings: SettingsStore) {
     private val context = context.applicationContext
 
     suspend fun load(): DeviceStatus {

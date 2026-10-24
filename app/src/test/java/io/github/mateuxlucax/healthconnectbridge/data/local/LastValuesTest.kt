@@ -2,6 +2,12 @@ package io.github.mateuxlucax.healthconnectbridge.data.local
 
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
 import io.github.mateuxlucax.healthconnectbridge.testing.InMemoryPrefs
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,5 +72,22 @@ class LastValuesTest {
     fun malformedEntriesAreSkipped() {
         prefs.edit().putString("last_values", """{"health_steps":5,"health_weight_kg":{"v":72.5,"t":10},"x":{"v":1}}""").apply()
         assertEquals(listOf("health_weight_kg"), store.all().map { it.metric })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun values_emitsTheStoredValuesThenEachUpload() = runTest {
+        store.record(listOf(sample("health_steps", 1, 1)))
+        val emitted = mutableListOf<List<Double>>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            store.values.collect { values -> emitted += values.map { it.value } }
+        }
+        store.record(listOf(sample("health_steps", 2, 2)))
+        prefs.edit().putString("server_url", "http://x").apply() // another key: no emission
+        job.cancel()
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf(1.0), listOf(2.0)), emitted)
+        assertEquals(0, prefs.listenerCount)
     }
 }

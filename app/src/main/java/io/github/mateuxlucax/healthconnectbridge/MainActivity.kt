@@ -15,12 +15,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
-import io.github.mateuxlucax.healthconnectbridge.data.DeviceStatusRepository
 import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
-import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
-import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
-import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import io.github.mateuxlucax.healthconnectbridge.ui.App
 import io.github.mateuxlucax.healthconnectbridge.ui.AppActions
 import io.github.mateuxlucax.healthconnectbridge.ui.theme.AppTheme
@@ -28,16 +24,8 @@ import kotlinx.coroutines.CompletableDeferred
 
 /** The app's launcher activity. Its name is public (launcher shortcuts): do not move or rename it. */
 class MainActivity : ComponentActivity() {
-    private lateinit var settings: Settings
-
-    /** Bumped when the app returns to the foreground or permissions change: screens re-read everything. */
+    /** Bumped when the app returns to the foreground or permissions change: the device status is reloaded. */
     private var refreshKey by mutableIntStateOf(0)
-
-    /** Bumped when a sync writes state that the screens show. */
-    private var syncKey by mutableIntStateOf(0)
-
-    /** Watches the sync state while the activity is resumed. */
-    private var syncStateObserver: AutoCloseable? = null
 
     private val permissionRequest =
         registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { refreshKey++ }
@@ -58,11 +46,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        settings = Settings(this)
-        val lastValues = LastValues(this)
-        val scheduler = SyncScheduler(this, SyncWorker::class.java)
-        val deviceStatus = DeviceStatusRepository(this, settings)
-        if (settings.onboardingDone) scheduler.schedulePeriodic()
+        val container = (application as BridgeApplication).container
+        val onboardingDone = container.settings.onboardingDone
+        if (onboardingDone) container.syncScheduler.schedulePeriodic()
         val actions = AppActions(
             ::requestHealthPermissions,
             ::requestBatteryExemption,
@@ -70,20 +56,15 @@ class MainActivity : ComponentActivity() {
             ::openAppSettings,
         )
         setContent {
-            AppTheme { App(settings, lastValues, scheduler, deviceStatus, refreshKey, syncKey, actions) }
+            AppTheme {
+                App(container.viewModelFactory, container.deviceStatusRepository, onboardingDone, refreshKey, actions)
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        syncStateObserver = settings.observeSyncState { syncKey++ }
         refreshKey++
-    }
-
-    override fun onPause() {
-        syncStateObserver?.close()
-        syncStateObserver = null
-        super.onPause()
     }
 
     private fun requestHealthPermissions() {
