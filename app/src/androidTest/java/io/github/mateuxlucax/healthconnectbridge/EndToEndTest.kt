@@ -1,6 +1,7 @@
 package io.github.mateuxlucax.healthconnectbridge
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -29,6 +30,15 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
+import io.github.mateuxlucax.healthconnectbridge.data.healthconnect.HealthConnectAccess
+import io.github.mateuxlucax.healthconnectbridge.data.local.LastValues
+import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
+import io.github.mateuxlucax.healthconnectbridge.model.SyncError
+import io.github.mateuxlucax.healthconnectbridge.sync.HealthSync
+import io.github.mateuxlucax.healthconnectbridge.sync.SyncRunner
+import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -57,6 +67,8 @@ class EndToEndTest {
     private val context = instrumentation.targetContext
     private val source = context.packageName
     private val settings = Settings(context)
+    /** The app's preferences file, by its persisted name. */
+    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val client = HealthConnectClient.getOrCreate(context)
     private val token = requireNotNull(InstrumentationRegistry.getArguments().getString("token")) {
         "pass the exporter's token with -e token <token>"
@@ -75,9 +87,9 @@ class EndToEndTest {
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).setInitialDelay(1, TimeUnit.DAYS).build(),
         ).result.get()
-        settings.prefs.edit().clear().commit()
+        prefs.edit().clear().commit()
 
-        val permissions = HealthSync.requestedPermissions(client) + WRITE_TYPES.map { HealthPermission.getWritePermission(it) }
+        val permissions = HealthConnectAccess.requestedPermissions(client) + WRITE_TYPES.map { HealthPermission.getWritePermission(it) }
         permissions.forEach { instrumentation.uiAutomation.grantRuntimePermission(source, it) }
         assertTrue(client.permissionController.getGrantedPermissions().containsAll(permissions))
 
@@ -92,7 +104,7 @@ class EndToEndTest {
         val declared = context.packageManager.getPackageInfo(source, PackageManager.GET_PERMISSIONS).requestedPermissions
         assertTrue(declared.orEmpty().contains(LocalNetwork.PERMISSION))
         for (language in LANGUAGES) {
-            settings.prefs.edit().putBoolean("onboarding_done", false).commit()
+            prefs.edit().putBoolean("onboarding_done", false).commit()
             onboardingScreenshots(language)
             assertTrue(settings.onboardingDone)
         }
@@ -120,7 +132,7 @@ class EndToEndTest {
             listOf(WeightRecord(time = weightTime, zoneOffset = null, weight = Mass.kilograms(72.5), metadata = meta()))
         )
         // This one goes through the real WorkManager path ("Sync now").
-        SyncWorker.syncNow(context)
+        SyncScheduler(context, SyncWorker::class.java).syncNow()
         val work = waitUntil("the sync-now work to finish", 60_000) {
             WorkManager.getInstance(context).getWorkInfosForUniqueWork("sync-now").get()
                 .firstOrNull()?.takeIf { it.state.isFinished }
@@ -131,7 +143,7 @@ class EndToEndTest {
         assertExpectedSeries("health_weight_kg")
 
         screenshot("home-light") { text(it, R.string.status_ok) }
-        val permissionCount = HealthSync.requestedPermissions(client).size
+        val permissionCount = HealthConnectAccess.requestedPermissions(client).size
         screenshot("settings", action = { click(text(it, R.string.tab_settings)) }) {
             resources(it).getQuantityString(R.plurals.permissions_all, permissionCount, permissionCount)
         }
@@ -156,7 +168,9 @@ class EndToEndTest {
         if (!themed.sameAs(plain)) save("launcher-icon-themed", themed)
     }
 
-    private suspend fun sync() = SyncWorker.runAndReport(settings) { HealthSync(context, settings).incremental() }
+    private suspend fun sync() = SyncRunner.runAndReport(settings) {
+        HealthSync(context, settings, LastValues(context), ExporterClient()).incremental()
+    }
 
     private fun meta() = Metadata.manualEntry()
 
@@ -291,7 +305,7 @@ class EndToEndTest {
             shot("onboarding-2-server")
             click(t(R.string.next))
             step(3)
-            val permissions = HealthSync.requestedPermissions(client).size
+            val permissions = HealthConnectAccess.requestedPermissions(client).size
             waitFor(resources(language).getQuantityString(R.plurals.permissions_all, permissions, permissions))
             shot("onboarding-3-permissions")
             click(t(R.string.next))

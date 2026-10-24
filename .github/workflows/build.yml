@@ -68,10 +68,11 @@ jobs:
             echo "::warning::No signing secrets configured; release APK is signed with the debug key."
           fi
 
+      # Also compiles the instrumented test, so its compile errors show up here and not only in the emulator job.
       - name: Unit tests
         run: |
           set -o pipefail
-          ./gradlew testDebugUnitTest 2>&1 | tee "$RUNNER_TEMP/test.log"
+          ./gradlew testDebugUnitTest compileDebugAndroidTestKotlin 2>&1 | tee "$RUNNER_TEMP/test.log"
 
       # Surfaces results as annotations, readable without downloading logs.
       - name: Report test results

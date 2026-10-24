@@ -1,0 +1,113 @@
+package io.github.mateuxlucax.healthconnectbridge.ui.settings
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import io.github.mateuxlucax.healthconnectbridge.BuildConfig
+import io.github.mateuxlucax.healthconnectbridge.R
+import io.github.mateuxlucax.healthconnectbridge.data.local.Settings
+import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
+import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
+import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
+import io.github.mateuxlucax.healthconnectbridge.ui.AppActions
+import io.github.mateuxlucax.healthconnectbridge.ui.components.BatteryState
+import io.github.mateuxlucax.healthconnectbridge.ui.components.BodyText
+import io.github.mateuxlucax.healthconnectbridge.ui.components.HistoryImport
+import io.github.mateuxlucax.healthconnectbridge.ui.components.LocalNetworkNotice
+import io.github.mateuxlucax.healthconnectbridge.ui.components.LocalNetworkState
+import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SectionCard
+import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
+import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
+import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberConnectionTest
+import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
+import kotlinx.coroutines.launch
+
+@Composable
+fun SettingsScreen(
+    settings: Settings,
+    scheduler: SyncScheduler,
+    status: DeviceStatus?,
+    statusFailed: Boolean,
+    refreshKey: Int,
+    syncKey: Int,
+    actions: AppActions,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
+    var token by rememberSaveable { mutableStateOf(settings.token) }
+    val scope = rememberCoroutineScope()
+    val localNetworkAccess = rememberLocalNetworkAccess(actions)
+    val test = rememberConnectionTest(localNetworkAccess)
+    val filled = ServerUrl.isValid(url) && token.isNotBlank()
+
+    Column(
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        SectionCard(stringResource(R.string.section_server)) {
+            ServerFields(url, { url = it; test.clear() }, token, { token = it; test.clear() })
+            LocalNetworkNotice(url, status, actions)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = { test.run(url, token) }, enabled = filled, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.test_connection))
+                }
+                Button(
+                    onClick = {
+                        settings.serverUrl = url.trim()
+                        settings.token = token.trim()
+                        Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
+                        // Saved either way; a denial stays visible in the notice above and on Home.
+                        scope.launch { localNetworkAccess(url.trim()) }
+                    },
+                    enabled = filled,
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(R.string.save)) }
+            }
+            TestResultLine(test.result, actions.openAppSettings)
+        }
+
+        SectionCard(stringResource(R.string.section_history)) {
+            BodyText(stringResource(R.string.history_settings_text))
+            val lastBackfill = remember(refreshKey, syncKey) { settings.lastBackfill }
+            HistoryImport(lastBackfill) { scheduler.backfill(it) }
+        }
+
+        SectionCard(stringResource(R.string.section_permissions)) {
+            PermissionState(status, statusFailed, actions.requestHealthPermissions)
+            BatteryState(status, actions.requestBatteryExemption)
+            LocalNetworkState(status, actions)
+        }
+
+        Text(
+            stringResource(R.string.version, BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        )
+    }
+}

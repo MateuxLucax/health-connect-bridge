@@ -33,9 +33,12 @@ for f in failures[:9]:
 if len(failures) > 9:
     print(f"::error title=Test failures::{esc(chr(10).join(x.splitlines()[0] for x in failures[9:]))}")
 
-if total == 0 and os.path.exists(log_path):
-    # No results usually means compilation failed: show the relevant Gradle output.
-    lines = open(log_path, errors="replace").read().splitlines()
+log = open(log_path, errors="replace").read() if os.path.exists(log_path) else ""
+# No results usually means compilation failed; a failed build without failed tests too (e.g. the instrumented
+# test didn't compile after the unit tests passed): show the relevant Gradle output.
+build_failed = "BUILD FAILED" in log
+if total == 0 or (build_failed and not failed):
+    lines = log.splitlines()
     keep = [l for l in lines if l.startswith("e: ") or "error:" in l or "FAILED" in l]
     for i, l in enumerate(lines):
         if "What went wrong" in l:
@@ -44,4 +47,4 @@ if total == 0 and os.path.exists(log_path):
     print(f"::error title=Gradle output (end)::{esc(chr(10).join(lines[-40:]))}")
 
 # Gradle can pass without running anything (e.g. the APK failed to install), so no tests is a failure.
-sys.exit(1 if failed or total == 0 else 0)
+sys.exit(1 if failed or total == 0 or build_failed else 0)

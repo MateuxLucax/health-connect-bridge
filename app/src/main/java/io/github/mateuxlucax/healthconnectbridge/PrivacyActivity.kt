@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** Privacy rationale opened from the Health Connect permission screen. */
+/** Privacy rationale opened from the Health Connect permission screen. The manifest alias targets it by name: do not move it. */
 class PrivacyActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
