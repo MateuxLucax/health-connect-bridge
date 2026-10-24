@@ -17,10 +17,10 @@ constraint:
 - `sync-now`: unique one-time work from the Home screen, `KEEP`.
 - `backfill`: unique one-time work with `backfill_days`, `REPLACE`.
 
-A process-wide `Mutex` serializes runs. `runAndReport` maps outcomes:
-success; `failure` for 401, other 4xx, setup problems and
-`SecurityException`; `retry` (WorkManager backoff) for 5xx, network errors
-and other exceptions. The onboarding asks the user to exempt the app from
+A process-wide `Mutex` serializes runs. `runAndReport` maps each exception
+to a `SyncError` kind: `failure` for 401, other 4xx, setup problems, a
+malformed URL and `SecurityException`; `retry` (WorkManager backoff) for
+5xx, network errors and other exceptions. The onboarding asks the user to exempt the app from
 battery optimization, since One UI otherwise kills background work.
 
 ## Consequences

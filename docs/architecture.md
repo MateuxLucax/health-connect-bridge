@@ -39,7 +39,7 @@ flowchart TB
         ds["DeviceStatus<br/>HC availability, permissions, battery"]
     end
     subgraph sync["Sync"]
-        wk["SyncWorker<br/>WorkManager, mutex, result mapping"]
+        wk["SyncWorker<br/>WorkManager, mutex, SyncError mapping"]
         hs["HealthSync<br/>incremental() / backfill()"]
         mt["Metrics.kt<br/>Record.toSamples()"]
         up["Uploader<br/>HttpURLConnection + org.json"]
@@ -83,12 +83,14 @@ flowchart TB
 | `SettingsScreen.kt` | Server settings and connection test, history import, permission and battery state |
 | `ConnectionTest.kt` | Sends an empty batch and reports the outcome |
 | `DeviceStatus.kt` | Health Connect availability, granted vs. requested permissions, battery exemption |
-| `SyncWorker.kt` | WorkManager worker: periodic, sync-now and backfill jobs; maps exceptions to success, failure or retry |
+| `SyncWorker.kt` | WorkManager worker: periodic, sync-now and backfill jobs; records the outcome and returns success, failure or retry |
+| `SyncError.kt` | Error kinds (with a `retry` flag) mapped from exceptions; shared by sync and connection test |
 | `HealthSync.kt` | Changes API sync, initial reads, backfill, readable types and requested permissions |
 | `Metrics.kt` | Synced record types and the record-to-sample mapping |
 | `Uploader.kt` | `POST {serverUrl}/api/v1/samples` in chunks of 5,000 |
 | `Settings.kt`, `LastValues.kt` | Persisted state |
-| `Catalog.kt`, `Format.kt`, `Components.kt`, `Theme.kt` | Data type list for the UI, value formatting, shared composables, dynamic color theme |
+| `Catalog.kt`, `Format.kt`, `Strings.kt`, `Components.kt`, `Theme.kt` | Data type list for the UI, locale-aware formatting, string resource lookup, shared composables, dynamic color theme |
+| `res/values`, `res/values-pt-rBR` | UI text in English (default) and Brazilian Portuguese |
 | `PrivacyActivity.kt` | Privacy rationale opened from the Health Connect permission screen |
 
 ## Deployment

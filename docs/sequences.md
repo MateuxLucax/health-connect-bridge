@@ -154,8 +154,10 @@ value, so the re-read is harmless.
 
 ## Error handling
 
-`SyncWorker.runAndReport` maps the outcome of a sync to a WorkManager result
-and stores the message in `last_error`, which the Home screen shows.
+`SyncWorker.runAndReport` turns any exception into a `SyncError` (a stable
+kind plus a detail), stores it in `last_error` / `last_error_detail` for the
+Home screen, and returns `retry` when the kind's `retry` flag is set,
+otherwise `failure`.
 
 ```mermaid
 sequenceDiagram
@@ -175,28 +177,28 @@ sequenceDiagram
         W-->>WM: success
     else 401
         E-->>S: 401
-        W->>SP: last_error = token rejected
+        W->>SP: last_error = UNAUTHORIZED
         W-->>WM: failure (no retry, user must fix the token)
     else other 4xx (e.g. 400)
         E-->>S: 4xx + reason
-        W->>SP: last_error = server refused the data
+        W->>SP: last_error = REJECTED + detail
         W-->>WM: failure
     else 5xx (502: Prometheus down or misconfigured)
         E-->>S: 502
-        W->>SP: last_error = server error
+        W->>SP: last_error = SERVER + detail
         W-->>WM: retry (backoff)
     else network error (IOException)
         S--xE: connect/read failure
-        W->>SP: last_error = communication failure
+        W->>SP: last_error = NETWORK + detail
         W-->>WM: retry (backoff)
     end
     Note over S,SP: on every failure the changes token stays at the last 2xx
 ```
 
-Other outcomes: missing URL or token, Health Connect unavailable or no read
-permission (`SetupException`) and `SecurityException` end with `failure`;
-any other exception (for example Health Connect rate limiting) ends with
-`retry`. A `failure` ends that run only; the periodic job runs again at its
+Other outcomes: missing URL or token, Health Connect unavailable, no read
+permission (`SetupException`), a malformed URL and `SecurityException` end
+with `failure`; any other exception (for example Health Connect rate
+limiting) ends with `retry`. A `failure` ends that run only; the periodic job runs again at its
 next interval.
 
 ## Backfill (history import)
@@ -251,12 +253,12 @@ sequenceDiagram
         C-->>U: OK, server accepted the token
     else 401
         E-->>U2: 401
-        C-->>U: token rejected
+        C-->>U: SyncError UNAUTHORIZED
     else other status
         E-->>U2: status + body
-        C-->>U: server answered HTTP status
+        C-->>U: SyncError REJECTED or SERVER
     else malformed URL or network error
-        C-->>U: invalid URL / could not connect
+        C-->>U: SyncError INVALID_URL or NETWORK
     end
 ```
 
