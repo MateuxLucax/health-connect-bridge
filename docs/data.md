@@ -155,9 +155,13 @@ database. WorkManager keeps its own job queue.
 | `token` | String | Onboarding, Settings | Bearer token, trimmed. |
 | `changes_token` | String | `HealthSync` | Health Connect changes token: the sync checkpoint. Saved after the initial read and after each successfully uploaded page of changes. |
 | `changes_types` | String | `HealthSync` (with `changes_token`) | Comma-separated, sorted simple class names of the record types the token covers, e.g. `HeartRateRecord,StepsRecord`. If the readable types change, the token is discarded and an initial read starts. |
-| `last_success_ms` | Long | `SyncRunner` | Epoch ms of the last successful sync or backfill; `0` = never. |
-| `last_error` | String? | `SyncRunner` | `SyncError.Kind` name of the last failed run (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
+| `changes_saved_ms` | Long | `HealthSync` (with `changes_token`) | Epoch ms when the checkpoint was last saved; `0` = never. When the readable types change, the new initial read covers the days since then (7 to 30). |
+| `last_success_ms` | Long | `SyncRunner` | Epoch ms of the last successful incremental sync (backfills don't set it); `0` = never. |
+| `last_error` | String? | `SyncRunner` | `SyncError.Kind` name of the last failed incremental sync (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
 | `last_error_detail` | String? | `SyncRunner` | Technical detail for that error (HTTP status and body, exception message), or none. |
+| `backfill_finished_ms` | Long | `SyncRunner` after a backfill | Epoch ms when the last history import ended, successfully or not; `0` = none yet. Shown in Settings. |
+| `backfill_error` | String? | `SyncRunner` after a backfill | `SyncError.Kind` name if the last history import failed; cleared when one succeeds. |
+| `backfill_error_detail` | String? | `SyncRunner` after a backfill | Technical detail for that error, or none. |
 | `last_values` | String (JSON) | `HealthSync` after each upload | Newest uploaded value per metric, for the Home screen. |
 | `onboarding_done` | Boolean | Onboarding (finish) | Shows the main screen and schedules the periodic job. |
 
@@ -189,11 +193,15 @@ erDiagram
         long last_success_ms
         string last_error
         string last_error_detail
+        long backfill_finished_ms
+        string backfill_error
+        string backfill_error_detail
         boolean onboarding_done
     }
     CHANGES_CHECKPOINT {
         string changes_token
         string changes_types
+        long changes_saved_ms
     }
     LAST_VALUE {
         string key "metric or metric:label"
@@ -207,5 +215,5 @@ erDiagram
 | Unique name | Kind | Policy | Input |
 |-------------|------|--------|-------|
 | `periodic-sync` | Periodic, 15 min, network required | `KEEP` | none: incremental sync |
-| `sync-now` | One-time, network required | `KEEP` | none: incremental sync |
+| `sync-now` | One-time, network required | `REPLACE` | none: incremental sync |
 | `backfill` | One-time, network required | `REPLACE` | `backfill_days` = N |
