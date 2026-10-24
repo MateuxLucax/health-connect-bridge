@@ -75,15 +75,12 @@ jobs:
           api-level: 36
           target: google_apis
           arch: x86_64
+          profile: pixel_6
           cores: 4
           ram-size: 4096M
           disk-size: 8G
           emulator-boot-timeout: 900
           script: |
-            adb shell settings put global sysui_demo_allowed 1 || true
-            adb shell am broadcast -a com.android.systemui.demo -e command enter || true
-            adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1000 || true
-            adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false || true
             bash -o pipefail -c './gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.token="$AUTH_TOKEN" 2>&1 | tee "$RUNNER_TEMP/test.log"; s=$?; adb logcat -d > "$RUNNER_TEMP/logcat.txt"; exit $s'
             mkdir -p docs
             adb pull /data/local/tmp/screenshots docs/

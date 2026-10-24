@@ -119,10 +119,11 @@ class EndToEndTest {
         save("launcher-icon", plain)
 
         // Launcher3's own setting for Material You themed icons (what Wallpaper & style toggles).
-        shell("content update --uri content://${device.launcherPackageName}.grid_control/icon_themed --bind boolean_value:b:true")
+        val uri = "content://${device.launcherPackageName}.grid_control/icon_themed"
+        val out = shell("content update --uri $uri --bind boolean_value:b:true") + shell("content query --uri $uri")
         Thread.sleep(3_000)
         val themed = captureLauncherIcon(device)
-        if (themed.sameAs(plain)) println("Themed icons could not be enabled; launcher-icon-themed.png not saved")
+        if (themed.sameAs(plain)) org.junit.Assert.fail("DEBUG themed: ${device.launcherPackageName} $out")
         else save("launcher-icon-themed", themed)
     }
 
