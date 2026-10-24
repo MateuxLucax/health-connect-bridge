@@ -25,7 +25,13 @@ import java.time.Instant
 import java.util.Collections
 import kotlin.reflect.KClass
 
-/** SharedPreferences kept in a map; edits apply immediately, listeners are called on apply or commit. */
+/**
+ * SharedPreferences kept in a map; edits apply immediately, listeners are called on apply or commit.
+ *
+ * Unlike the real implementation, which holds listeners weakly, this one keeps them strongly, so tests can't
+ * catch a listener being garbage collected while still needed. `changes()` (PreferenceChanges.kt) relies on
+ * its callbackFlow keeping the listener referenced until awaitClose; keep it that way.
+ */
 class InMemoryPrefs : SharedPreferences {
     val values = mutableMapOf<String, Any?>()
     private val listeners = mutableSetOf<SharedPreferences.OnSharedPreferenceChangeListener>()
