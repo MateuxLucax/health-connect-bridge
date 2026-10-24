@@ -200,7 +200,7 @@ class EndToEndTest {
         )
         for ((metric, series) in expected) assertEquals(metric, series, series(metric))
 
-        val names = query("""count by (__name__) ({__name__=~"health_.+"}[30d])""")
+        val names = query("""{__name__=~"health_.+"}[30d]""")
         val actualNames = (0 until names.length()).map { names.getJSONObject(it).getJSONObject("metric").getString("__name__") }
         assertEquals(expected.keys + extra, actualNames.toSet())
     }
