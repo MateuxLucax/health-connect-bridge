@@ -41,7 +41,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 
 /**
  * Real Health Connect -> app sync -> exporter -> Prometheus, on an emulator. The workflow runs the
@@ -111,7 +110,7 @@ class EndToEndTest {
         assertExpectedSeries("health_weight_kg")
 
         screenshot("home-light")
-        screenshot("settings") { device.findObject(By.text("Configurações")).click() }
+        screenshot("settings") { click("Configurações") }
         shell("cmd uimode night yes")
         Thread.sleep(2_000)
         screenshot("home-dark")
@@ -248,30 +247,38 @@ class EndToEndTest {
     /** Walks through the five onboarding steps, with the server and permissions already set up. */
     private fun onboardingScreenshots() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            Thread.sleep(2_000)
+            waitFor("Passo 1 de 5")
             save("onboarding-1-welcome", instrumentation.uiAutomation.takeScreenshot())
             click("Próximo")
+            waitFor("Passo 2 de 5")
             click("Testar conexão")
-            requireNotNull(device.wait(Until.findObject(By.textContains("Conexão OK")), 15_000)) {
-                "connection test did not succeed"
-            }
+            waitFor("Conexão OK: o servidor aceitou o token.", 15_000)
             save("onboarding-2-server", instrumentation.uiAutomation.takeScreenshot())
             click("Próximo")
-            requireNotNull(device.wait(Until.findObject(By.textContains("permissões concedidas")), 10_000))
+            waitFor("Passo 3 de 5")
+            waitFor("Todas as ${HealthSync.requestedPermissions(client).size} permissões concedidas.")
             save("onboarding-3-permissions", instrumentation.uiAutomation.takeScreenshot())
             click("Próximo")
+            waitFor("Passo 4 de 5")
             Thread.sleep(1_000)
             save("onboarding-4-battery", instrumentation.uiAutomation.takeScreenshot())
-            device.findObject(By.text(Pattern.compile("Próximo|Pular"))).click()
+            click("Pular")
+            waitFor("Passo 5 de 5")
             Thread.sleep(1_000)
             save("onboarding-5-history", instrumentation.uiAutomation.takeScreenshot())
             click("Concluir")
-            requireNotNull(device.wait(Until.findObject(By.text("Sincronizar agora")), 10_000))
+            waitFor("Sincronizar agora")
         }
     }
 
+    private fun waitFor(text: String, timeoutMs: Long = 10_000): UiObject2 =
+        device.wait(Until.findObject(By.text(text)), timeoutMs)
+            ?: throw AssertionError("\"$text\" not found; on screen: " + screenTexts())
+
+    private fun screenTexts(): List<String> = device.findObjects(By.textContains("")).map { it.text }
+
     private fun click(text: String) {
-        requireNotNull(device.wait(Until.findObject(By.text(text)), 10_000)) { "\"$text\" not found" }.click()
+        waitFor(text).click()
         device.waitForIdle()
     }
 
