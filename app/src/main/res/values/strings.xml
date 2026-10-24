@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Health Connect Bridge</string>
+    <string name="server_url_hint">URL do servidor (ex.: http://192.168.0.10:8080)</string>
+    <string name="token_hint">Token</string>
+    <string name="save">Salvar</string>
+    <string name="saved">Configurações salvas</string>
+    <string name="grant_permissions">Conceder permissões do Health Connect</string>
+    <string name="sync_now">Sincronizar agora</string>
+    <string name="backfill">Importar histórico (dias)</string>
+    <string name="backfill_days_hint">Dias</string>
+    <string name="backfill_days_default" translatable="false">30</string>
+    <string name="invalid_days">Informe um número de dias válido</string>
+    <string name="sync_enqueued">Sincronização agendada</string>
+    <string name="disable_battery_optimization">Desativar otimização de bateria</string>
+    <string name="hc_unavailable">Health Connect indisponível</string>
+    <string name="status_hc_available">Health Connect: disponível</string>
+    <string name="status_hc_unavailable">Health Connect: indisponível</string>
+    <string name="status_hc_update_required">Health Connect: atualização necessária</string>
+    <string name="status_permissions">Permissões concedidas: %1$d de %2$d</string>
+    <string name="status_last_success">Última sincronização: %1$s</string>
+    <string name="status_last_error">Último erro: %1$s</string>
+    <string name="never">nunca</string>
+    <string name="none">nenhum</string>
+    <string name="privacy_text">Política de privacidade\n\nO Health Connect Bridge lê os dados de saúde que você autorizar no Health Connect (frequência cardíaca, passos, calorias, sono, exercícios e outros) e os envia somente para o servidor que você configurar no app.\n\nNenhum dado é enviado a terceiros, e o app não coleta estatísticas de uso. Você pode revogar as permissões a qualquer momento nas configurações do Health Connect.</string>
+</resources>

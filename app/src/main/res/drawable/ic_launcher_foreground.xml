@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Heart with a pulse line, inside the 66dp adaptive icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,78 L33,57 C26,50 27,39 35,35 C42,31 49,34 54,41 C59,34 66,31 73,35 C81,39 82,50 75,57 Z" />
+    <path
+        android:pathData="M30,53 L43,53 L47,45 L53,62 L58,49 L61,53 L78,53"
+        android:strokeWidth="3.5"
+        android:strokeColor="#C62828"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

@@ -1,0 +1,141 @@
+package io.github.mateuxlucax.healthconnectbridge
+
+import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
+import androidx.health.connect.client.changes.UpsertionChange
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.SkinTemperatureRecord
+import androidx.health.connect.client.request.ChangesTokenRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import java.time.Duration
+import java.time.Instant
+import kotlin.reflect.KClass
+
+/** Problem the user must fix in the app (settings, permissions); retrying won't help. */
+class SetupException(message: String) : Exception(message)
+
+/** Reads Health Connect and uploads mapped samples to the exporter. */
+class HealthSync(private val context: Context, private val settings: Settings) {
+
+    /** Changes-API sync. Only advances the checkpoint after each successful upload. */
+    suspend fun incremental() {
+        val client = client()
+        val types = readableTypes(client)
+        val typesKey = types.map { it.java.simpleName }.sorted().joinToString(",")
+
+        var token = settings.changesToken?.takeIf { settings.changesTypes == typesKey }
+            ?: initialRead(client, types, typesKey, INITIAL_DAYS)
+
+        while (true) {
+            val response = client.getChanges(token)
+            if (response.changesTokenExpired) {
+                token = initialRead(client, types, typesKey, EXPIRED_TOKEN_DAYS)
+                continue
+            }
+            // DeletionChange is ignored: Prometheus cannot delete samples.
+            val samples = response.changes
+                .filterIsInstance<UpsertionChange>()
+                .flatMap { it.record.toSamples() }
+            upload(samples)
+            settings.saveChangesToken(response.nextChangesToken, typesKey)
+            token = response.nextChangesToken
+            if (!response.hasMore) break
+        }
+    }
+
+    /** Re-reads the last [days] days without touching the checkpoint. */
+    suspend fun backfill(days: Int) {
+        val client = client()
+        val end = Instant.now()
+        readRange(client, readableTypes(client), end.minus(Duration.ofDays(days.toLong())), end)
+    }
+
+    /** Takes a changes token first so nothing written during the read is missed, then stores it. */
+    private suspend fun initialRead(
+        client: HealthConnectClient,
+        types: List<KClass<out Record>>,
+        typesKey: String,
+        days: Long,
+    ): String {
+        val token = client.getChangesToken(ChangesTokenRequest(types.toSet()))
+        val end = Instant.now()
+        readRange(client, types, end.minus(Duration.ofDays(days)), end)
+        settings.saveChangesToken(token, typesKey)
+        return token
+    }
+
+    private suspend fun readRange(
+        client: HealthConnectClient,
+        types: List<KClass<out Record>>,
+        start: Instant,
+        end: Instant,
+    ) {
+        for (type in types) {
+            var pageToken: String? = null
+            do {
+                @Suppress("UNCHECKED_CAST")
+                val response = client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = type as KClass<Record>,
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                        pageToken = pageToken,
+                    )
+                )
+                upload(response.records.flatMap { it.toSamples() })
+                pageToken = response.pageToken
+            } while (!pageToken.isNullOrEmpty())
+        }
+    }
+
+    private suspend fun upload(samples: List<Sample>) {
+        if (samples.isNotEmpty()) Uploader.upload(settings.serverUrl, settings.token, samples)
+    }
+
+    private fun client(): HealthConnectClient {
+        if (settings.serverUrl.isBlank() || settings.token.isBlank()) {
+            throw SetupException("Configure a URL do servidor e o token.")
+        }
+        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+            throw SetupException("Health Connect indisponível neste aparelho.")
+        }
+        return HealthConnectClient.getOrCreate(context)
+    }
+
+    private suspend fun readableTypes(client: HealthConnectClient): List<KClass<out Record>> {
+        val granted = client.permissionController.getGrantedPermissions()
+        val types = supportedTypes(client).filter { HealthPermission.getReadPermission(it) in granted }
+        if (types.isEmpty()) throw SetupException("Nenhuma permissão de leitura do Health Connect concedida.")
+        return types
+    }
+
+    companion object {
+        private const val INITIAL_DAYS = 7L
+        private const val EXPIRED_TOKEN_DAYS = 30L
+
+        /** Record types this device supports (skin temperature needs a recent Health Connect). */
+        fun supportedTypes(client: HealthConnectClient): List<KClass<out Record>> {
+            val skinTemperature = client.features.getFeatureStatus(
+                HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            return RECORD_TYPES.filter { it != SkinTemperatureRecord::class || skinTemperature }
+        }
+
+        /** Every permission the app asks for: one read per supported type, plus background and history. */
+        fun requestedPermissions(client: HealthConnectClient): Set<String> = buildSet {
+            supportedTypes(client).forEach { add(HealthPermission.getReadPermission(it)) }
+            if (client.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND) ==
+                HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            ) {
+                add(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
+            }
+            if (client.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY) ==
+                HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            ) {
+                add(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
+            }
+        }
+    }
+}
