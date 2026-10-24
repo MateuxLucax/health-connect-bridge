@@ -84,9 +84,12 @@ jobs:
         id: signer
         run: |
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
-          sha256=$("$apksigner" verify --print-certs "health-connect-bridge-$VERSION_NAME.apk" \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          if [ -z "$sha256" ]; then echo "::error::Could not read the APK signer certificate"; exit 1; fi
+          certs=$("$apksigner" verify --print-certs "health-connect-bridge-$VERSION_NAME.apk" 2>&1) || true
+          sha256=$(echo "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ -z "$sha256" ]; then
+            echo "::error title=apksigner ($apksigner)::$(echo "$certs" | head -n 20 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+            exit 1
+          fi
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           echo "Signer certificate SHA-256: \`$sha256\`" >> "$GITHUB_STEP_SUMMARY"
 
