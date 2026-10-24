@@ -11,13 +11,20 @@ interval Android allows for periodic background work.
 ## Decision
 
 `SyncWorker` (a `CoroutineWorker`) runs all sync work, with a network
-constraint:
+constraint; `SyncScheduler` enqueues it:
 
 - `periodic-sync`: unique periodic work every 15 minutes, `KEEP`.
-- `sync-now`: unique one-time work from the Home screen, `KEEP`.
+- `sync-now`: unique one-time work from the Home screen, `REPLACE`, so a
+  previous manual run waiting in retry backoff doesn't swallow the tap
+  (replacing a running sync is safe: the checkpoint moves per uploaded page
+  and the mutex serializes runs).
 - `backfill`: unique one-time work with `backfill_days`, `REPLACE`.
 
-A process-wide `Mutex` serializes runs. `runAndReport` maps each exception
+These names, the input key and `SyncWorker`'s class name are stored by
+WorkManager on the phone, so they never change (see
+[ADR 0013](0013-code-structure.md)).
+
+A process-wide `Mutex` serializes runs. `SyncRunner.runAndReport` maps each exception
 to a `SyncError` kind: `failure` for 401, other 4xx, setup problems, a
 malformed URL and `SecurityException`; `retry` (WorkManager backoff) for
 5xx, network errors and other exceptions. The onboarding asks the user to exempt the app from

@@ -106,9 +106,11 @@ At most 5,000 samples per request.
 
 ## Building
 
-The **Build** workflow runs on every push to `main`: it runs the unit tests and builds the signed release APK, and in parallel runs an end-to-end test on an Android emulator. The end-to-end test inserts records into the real Health Connect, runs the app's sync against [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter) and a real Prometheus, and checks every sample in Prometheus against the [Metrics](#metrics) table (including late records through the Changes API and a rejected token). It also takes the screenshots above. The emulator runs Android 16 (API 36; the API 37 image is unstable on the runner), so the end-to-end test covers the implicit local network grant; the Android 17 permission flow is covered by unit tests.
+The **Build** workflow runs on every push to `main`: it runs the unit tests (and compiles the instrumented test) and builds the signed release APK, and in parallel runs an end-to-end test on an Android emulator. The end-to-end test inserts records into the real Health Connect, runs the app's sync against [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter) and a real Prometheus, and checks every sample in Prometheus against the [Metrics](#metrics) table (including late records through the Changes API and a rejected token). It also takes the screenshots above. The emulator runs Android 16 (API 36; the API 37 image is unstable on the runner), so the end-to-end test covers the implicit local network grant; the Android 17 permission flow is covered by unit tests.
 
 Locally: `./gradlew assembleRelease` (JDK 17 and the Android SDK are required).
+
+The code is one module with `model`, `data`, `sync` and `ui` packages, manual dependency injection and one ViewModel per screen; see [Code structure](docs/architecture.md#code-structure) and [ADR 0013](docs/adr/0013-code-structure.md).
 
 ### Releases
 

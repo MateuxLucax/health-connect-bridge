@@ -7,7 +7,7 @@
 ## HTTP API contract
 
 This contract is shared by the exporter (`main.go`) and the app
-(`Uploader.kt`).
+(`data/exporter/ExporterClient.kt`).
 
 ### `POST /api/v1/samples`
 
@@ -87,7 +87,7 @@ Unauthenticated. Returns `200` with body `ok`.
 
 ## Metric catalog
 
-The app maps Health Connect records to samples (`Metrics.kt` in
+The app maps Health Connect records to samples (`data/healthconnect/RecordMapping.kt` in
 health-connect-bridge); the exporter forwards whatever valid samples it
 receives. This table is identical in both repositories' docs.
 
@@ -146,7 +146,7 @@ classDiagram
 ## On-device state
 
 Everything is stored in one SharedPreferences file, `settings`
-(`MODE_PRIVATE`), through `Settings.kt` and `LastValues.kt`. There is no
+(`MODE_PRIVATE`), through `SettingsStore.kt` and `LastValues.kt` (`data/local`). There is no
 database. WorkManager keeps its own job queue.
 
 | Key | Type | Written by | Meaning |
@@ -155,9 +155,9 @@ database. WorkManager keeps its own job queue.
 | `token` | String | Onboarding, Settings | Bearer token, trimmed. |
 | `changes_token` | String | `HealthSync` | Health Connect changes token: the sync checkpoint. Saved after the initial read and after each successfully uploaded page of changes. |
 | `changes_types` | String | `HealthSync` (with `changes_token`) | Comma-separated, sorted simple class names of the record types the token covers, e.g. `HeartRateRecord,StepsRecord`. If the readable types change, the token is discarded and an initial read starts. |
-| `last_success_ms` | Long | `SyncWorker` | Epoch ms of the last successful sync or backfill; `0` = never. |
-| `last_error` | String? | `SyncWorker` | `SyncError.Kind` name of the last failed run (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
-| `last_error_detail` | String? | `SyncWorker` | Technical detail for that error (HTTP status and body, exception message), or none. |
+| `last_success_ms` | Long | `SyncRunner` | Epoch ms of the last successful sync or backfill; `0` = never. |
+| `last_error` | String? | `SyncRunner` | `SyncError.Kind` name of the last failed run (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
+| `last_error_detail` | String? | `SyncRunner` | Technical detail for that error (HTTP status and body, exception message), or none. |
 | `last_values` | String (JSON) | `HealthSync` after each upload | Newest uploaded value per metric, for the Home screen. |
 | `onboarding_done` | Boolean | Onboarding (finish) | Shows the main screen and schedules the periodic job. |
 

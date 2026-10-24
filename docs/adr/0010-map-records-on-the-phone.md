@@ -11,7 +11,7 @@ units, labels and one timestamp each. The exporter is deliberately generic
 
 ## Decision
 
-`Metrics.kt` maps each record type to samples with a `source` label (the
+`RecordMapping.kt` (`data/healthconnect`) maps each record type to samples with a `source` label (the
 writing app's package). Series records (heart rate, skin temperature) give
 one sample per point; interval records (steps, distance, calories) give the
 amount at the interval start; sleep gives one sample per stage plus the

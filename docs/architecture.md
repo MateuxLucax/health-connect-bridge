@@ -29,71 +29,125 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph ui["UI (Jetpack Compose, Material 3)"]
-        main["MainActivity<br/>permission requests + battery intent"]
-        appc["App<br/>onboarding or Home/Settings tabs"]
-        onb["OnboardingScreen<br/>5 steps"]
-        home["HomeScreen<br/>last sync, last error, last values"]
-        set["SettingsScreen<br/>server, history import, permissions"]
-        ct["ConnectionTest"]
-        ds["DeviceStatus<br/>HC availability, permissions, battery"]
+    subgraph entry["Entry points and wiring (root package)"]
+        main["MainActivity<br/>permission requests, battery intent"]
+        appl["BridgeApplication<br/>owns the AppContainer"]
+        cont["AppContainer<br/>manual DI, ViewModel factory"]
+        wk["SyncWorker<br/>WorkManager entry, delegates to SyncRunner"]
     end
-    subgraph sync["Sync"]
-        wk["SyncWorker<br/>WorkManager, mutex, SyncError mapping"]
+    subgraph ui["ui (Jetpack Compose, Material 3)"]
+        appc["App<br/>onboarding or Home/Settings tabs, device status"]
+        onb["OnboardingScreen + OnboardingViewModel"]
+        home["HomeScreen + HomeViewModel"]
+        set["SettingsScreen + SettingsViewModel"]
+        ct["ConnectionTest<br/>state holder"]
+    end
+    subgraph sync["sync"]
+        sch["SyncScheduler<br/>periodic, sync-now, backfill"]
+        run["SyncRunner<br/>mutex, outcome, WorkManager result"]
         hs["HealthSync<br/>incremental() / backfill()"]
-        mt["Metrics.kt<br/>Record.toSamples()"]
-        up["Uploader<br/>HttpURLConnection + org.json"]
+        err["SyncErrors<br/>exception to SyncError"]
     end
-    subgraph state["State (SharedPreferences 'settings')"]
-        st["Settings<br/>URL, token, changes token, status"]
-        lv["LastValues<br/>newest value per metric (JSON)"]
+    subgraph data["data"]
+        st["SettingsStore + LastValues<br/>SharedPreferences 'settings', flows"]
+        exc["ExporterClient<br/>HttpURLConnection + org.json"]
+        rm["RecordMapping + HealthConnectAccess<br/>synced types, Record.toSamples(), permissions"]
+        net["ServerUrl + LocalNetwork"]
+        dsr["DeviceStatusRepository"]
     end
     hc["Health Connect"]
     exp["Exporter"]
 
+    appl --> cont
     main --> appc
+    main --> cont
+    wk --> cont
+    wk --> run
     appc --> onb
     appc --> home
     appc --> set
+    appc --> dsr
     onb --> ct
     set --> ct
-    appc --> ds
-    home -->|sync now| wk
-    onb -->|"backfill, schedule periodic"| wk
-    set -->|backfill| wk
-    wk --> hs
-    hs --> mt
-    hs --> up
+    ct --> exc
+    onb -->|"backfill, schedule periodic"| sch
+    home -->|sync now| sch
+    set -->|backfill| sch
+    home -->|"sync state, last values (flows)"| st
+    set -->|"server, last backfill"| st
+    onb -->|server, onboarding done| st
+    sch -->|enqueue SyncWorker| wk
+    run --> hs
+    run --> err
+    run --> st
+    hs --> rm
+    hs --> exc
     hs --> st
-    hs --> lv
+    hs --> net
     hs --> hc
-    ds --> hc
-    ct --> up
-    up --> exp
-    home --> st
-    home --> lv
+    dsr --> hc
+    dsr --> net
+    exc --> exp
 ```
 
-| File | Responsibility |
-|------|----------------|
-| `MainActivity.kt` | Entry point; schedules the periodic job when onboarding is done; launches the Health Connect permission request, the local network permission request (Android 17+) and the battery-optimization exemption; refreshes screens on resume and on preference changes |
-| `App.kt` | Shows onboarding until it is finished, then the Home and Settings tabs |
-| `OnboardingScreen.kt` | Welcome, server (URL, token, connection test), permissions, battery, history import |
-| `HomeScreen.kt` | Last success or last error, "sync now", last value per metric |
-| `SettingsScreen.kt` | Server settings and connection test, history import, permission and battery state |
-| `ConnectionTest.kt` | Sends an empty batch and reports the outcome |
-| `DeviceStatus.kt` | Health Connect availability, granted vs. requested permissions, battery exemption, local network access when the server is local |
-| `LocalNetwork.kt` | Whether the server URL is on the local network (resolves the host) and whether local network access is granted (Android 17+) |
-| `ServerUrl.kt` | URL validation, cleartext warning, private address ranges |
-| `SyncWorker.kt` | WorkManager worker: periodic, sync-now and backfill jobs; records the outcome and returns success, failure or retry |
-| `SyncError.kt` | Error kinds (with a `retry` flag) mapped from exceptions; shared by sync and connection test |
-| `HealthSync.kt` | Changes API sync, initial reads, backfill, readable types and requested permissions |
-| `Metrics.kt` | Synced record types and the record-to-sample mapping |
-| `Uploader.kt` | `POST {serverUrl}/api/v1/samples` in chunks of 5,000 |
-| `Settings.kt`, `LastValues.kt` | Persisted state |
-| `Catalog.kt`, `Format.kt`, `Strings.kt`, `Components.kt`, `Theme.kt` | Data type list for the UI, locale-aware formatting, string resource lookup, shared composables, dynamic color theme |
-| `res/values`, `res/values-pt-rBR` | UI text in English (default) and Brazilian Portuguese |
-| `PrivacyActivity.kt` | Privacy rationale opened from the Health Connect permission screen |
+## Code structure
+
+One Gradle module; packages by layer, features inside `ui/`
+([ADR 0013](adr/0013-code-structure.md)). Paths are relative to
+`app/src/main/java/io/github/mateuxlucax/healthconnectbridge/`.
+
+| Package | Files | Responsibility |
+|---------|-------|----------------|
+| (root) | `MainActivity.kt` | Launcher activity: schedules the periodic job when onboarding is done; launches the Health Connect permission request, the local network permission request (Android 17+) and the battery-optimization exemption; reloads the device status on resume |
+| | `PrivacyActivity.kt` | Privacy rationale opened from the Health Connect permission screen |
+| | `SyncWorker.kt` | WorkManager worker for the periodic, sync-now and backfill jobs; delegates to `SyncRunner` |
+| | `BridgeApplication.kt`, `AppContainer.kt` | Manual dependency injection: one container with the stores, clients, scheduler and the ViewModel factory |
+| `model` | `Sample.kt`, `SyncError.kt`, `SyncState.kt`, `BackfillResult.kt`, `LastValue.kt`, `DeviceStatus.kt` | Plain entities. `SyncError.Kind` has a `retry` flag; its text is in `ui/format` |
+| `data/local` | `SettingsStore.kt`, `LastValues.kt`, `PreferenceChanges.kt` | Persisted state (one SharedPreferences file) and flows of its changes |
+| `data/exporter` | `ExporterClient.kt` | `POST {serverUrl}/api/v1/samples` in chunks of 5,000 |
+| `data/healthconnect` | `RecordMapping.kt`, `HealthConnectAccess.kt` | The synced record types with their metrics, the record-to-sample mapping; the client, supported types and requested permissions |
+| `data/network` | `ServerUrl.kt`, `LocalNetwork.kt` | URL validation, cleartext warning, private ranges; whether the server is on the local network and whether access is granted (Android 17+) |
+| `data` | `DeviceStatusRepository.kt` | Health Connect availability, granted vs. requested permissions, battery exemption, local network access when the server is local |
+| `sync` | `HealthSync.kt` | Changes API sync, initial reads, backfill |
+| | `SyncRunner.kt`, `SyncErrors.kt` | One run at a time; records the outcome and returns success, failure or retry; maps exceptions to `SyncError` kinds (shared with the connection test) |
+| | `SyncScheduler.kt` | Unique work: `periodic-sync`, `sync-now`, `backfill` |
+| `ui` | `App.kt`, `AppActions.kt`, `WhileUiSubscribed.kt` | Onboarding until finished, then the Home and Settings tabs; activity callbacks passed to the screens |
+| `ui/onboarding` | `OnboardingScreen.kt`, `OnboardingViewModel.kt`, `DataFlow.kt` | Welcome (with the data flow animation), server (URL, token, connection test), permissions, battery, history import |
+| `ui/home` | `HomeScreen.kt`, `HomeViewModel.kt` | Last success or last error, "sync now", last value per metric |
+| `ui/settings` | `SettingsScreen.kt`, `SettingsViewModel.kt` | Server settings and connection test, history import, permission and battery state |
+| `ui/components` | `Components.kt`, `ServerSection.kt`, `StatusSection.kt`, `ConnectionTest.kt`, `DataTypeCatalog.kt` | Shared composables, the connection test state holder, data types as shown to the user |
+| `ui/format` | `Strings.kt`, `Format.kt`, `SyncErrorText.kt` | String resource lookup, locale-aware formatting, error messages |
+| `ui/theme` | `Theme.kt` | Dynamic color theme |
+| `res` | `values`, `values-pt-rBR` | UI text in English (default) and Brazilian Portuguese |
+
+Dependency rules (checked by `LayerDependencyTest`):
+
+```mermaid
+flowchart LR
+    root["root<br/>entry points, AppContainer"] --> ui
+    root --> sync
+    root --> data
+    ui["ui<br/>screens, ViewModels, components"] --> sync
+    ui --> data
+    ui --> model
+    sync["sync"] --> data
+    sync --> model
+    data["data"] --> model
+    model["model"]
+```
+
+| Package | May import | Must not import |
+|---------|------------|-----------------|
+| `model` | Kotlin, Java, Health Connect constants | anything else in the app, `Context`, `R` |
+| `data` | `model`, other `data` packages, Android and Health Connect APIs | `sync`, `ui`, `R` |
+| `sync` | `data`, `model`, WorkManager | `ui`, `R` |
+| `ui` | `sync` (`SyncErrors`), `data`, `model`, `R`, `BuildConfig` | the root package: activity callbacks arrive as `AppActions`, dependencies through the ViewModel factory |
+| root | everything | (nothing imports it) |
+
+Screens get their data through their ViewModel; composables in
+`ui/components` use only pure helpers such as `ServerUrl.isValid` and the
+local network checks. `SyncWorker`, `MainActivity` and `PrivacyActivity`
+never move or change name: WorkManager and the manifest refer to them.
 
 ## Deployment
 

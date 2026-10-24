@@ -6,7 +6,7 @@ documented in the
 
 | Document | Contents |
 |----------|----------|
-| [architecture.md](architecture.md) | System context, app components, deployment, trust boundaries |
+| [architecture.md](architecture.md) | System context, app components, code structure and package rules, deployment, trust boundaries |
 | [sequences.md](sequences.md) | Onboarding, first and incremental sync, expired token, errors, backfill, connection test, end-to-end sync |
 | [data.md](data.md) | HTTP API contract, metric catalog, on-device persisted state |
 | [adr/](adr/README.md) | Architecture Decision Records |

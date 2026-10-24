@@ -12,9 +12,11 @@ what ends up in Prometheus. Health Connect only exists on a device.
 
 - JVM unit tests (`app/src/test`) specify the behavior with fakes: a fake
   `HealthConnectClient`, in-memory SharedPreferences and a local HTTP server
-  (`Fakes.kt`). They cover `HealthSync`, `Metrics`, `Uploader`,
-  `SyncWorker` result mapping, `LastValues` and formatting. They run in the
-  Build workflow.
+  (`testing/Fakes.kt`). They cover `HealthSync`, the record mapping, the
+  `ExporterClient`, `SyncRunner` result mapping, the stores and their flows,
+  the ViewModels, formatting, the consistency of the UI catalog with the
+  synced types, and the package dependency rules. They run in the Build
+  workflow, which also compiles the instrumented test.
 - The `integration` job of the Build workflow runs `EndToEndTest` on an Android emulator (API
   36): it inserts records into the real Health Connect, runs the app's sync
   against the real exporter (built from its repo) and a real Prometheus 3.5

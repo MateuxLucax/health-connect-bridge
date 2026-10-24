@@ -9,8 +9,9 @@
 - [Connection test](#connection-test)
 - [End to end: app, exporter, Prometheus](#end-to-end-app-exporter-prometheus)
 
-All sync work runs in `SyncWorker` (WorkManager, network required). A
-process-wide mutex makes jobs run one at a time.
+All sync work runs in `SyncWorker` (WorkManager, network required), which
+hands it to `SyncRunner`; a process-wide mutex there makes jobs run one at a
+time. `SyncScheduler` enqueues the jobs.
 
 ## Onboarding
 
@@ -18,8 +19,8 @@ process-wide mutex makes jobs run one at a time.
 sequenceDiagram
     autonumber
     actor U as User
-    participant O as OnboardingScreen
-    participant SP as Settings (SharedPreferences)
+    participant O as OnboardingScreen + OnboardingViewModel
+    participant SP as SettingsStore (SharedPreferences)
     participant HC as Health Connect
     participant OS as Android settings
     participant WM as WorkManager
@@ -49,8 +50,8 @@ sequenceDiagram
     O->>WM: enqueue unique periodic "periodic-sync" (15 min, KEEP)
 ```
 
-`MainActivity` also calls `schedulePeriodic` on every launch after
-onboarding; `KEEP` leaves an existing schedule alone.
+`MainActivity` also calls `SyncScheduler.schedulePeriodic` on every launch
+after onboarding; `KEEP` leaves an existing schedule alone.
 
 ## First sync
 
@@ -60,10 +61,10 @@ No changes token is stored yet, or the set of readable record types changed
 ```mermaid
 sequenceDiagram
     autonumber
-    participant W as SyncWorker
+    participant W as SyncWorker / SyncRunner
     participant S as HealthSync
     participant HC as Health Connect
-    participant U as Uploader
+    participant U as ExporterClient
     participant E as Exporter
     participant SP as SharedPreferences
 
@@ -97,10 +98,10 @@ next run starts the initial read again.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant W as SyncWorker
+    participant W as SyncWorker / SyncRunner
     participant S as HealthSync
     participant HC as Health Connect
-    participant U as Uploader
+    participant U as ExporterClient
     participant E as Exporter
     participant SP as SharedPreferences
 
@@ -157,8 +158,8 @@ value, so the re-read is harmless.
 
 ## Error handling
 
-`SyncWorker.runAndReport` turns any exception into a `SyncError` (a stable
-kind plus a detail), stores it in `last_error` / `last_error_detail` for the
+`SyncRunner.runAndReport` turns any exception into a `SyncError` (a stable
+kind plus a detail, mapped by `SyncErrors`), stores it in `last_error` / `last_error_detail` for the
 Home screen, and returns `retry` when the kind's `retry` flag is set,
 otherwise `failure`.
 
@@ -166,7 +167,7 @@ otherwise `failure`.
 sequenceDiagram
     autonumber
     participant WM as WorkManager
-    participant W as SyncWorker
+    participant W as SyncWorker / SyncRunner
     participant S as HealthSync
     participant E as Exporter
     participant SP as SharedPreferences
@@ -217,7 +218,7 @@ sequenceDiagram
     autonumber
     actor U as User
     participant WM as WorkManager
-    participant W as SyncWorker
+    participant W as SyncWorker / SyncRunner
     participant S as HealthSync
     participant HC as Health Connect
     participant E as Exporter
@@ -249,7 +250,7 @@ sequenceDiagram
     autonumber
     actor U as User
     participant C as ConnectionTest
-    participant U2 as Uploader.check
+    participant U2 as ExporterClient.check
     participant E as Exporter
 
     U->>C: test (URL, token from the form, trimmed)
@@ -310,7 +311,7 @@ sequenceDiagram
         else unreachable or other status
             P-->>E: error
             E-->>S: 502
-            S-->>WM: HttpStatusException(502), SyncWorker returns Result.retry()
+            S-->>WM: HttpStatusException(502), SyncRunner returns Result.retry()
         end
     end
     S->>SP: save nextChangesToken (only after every chunk got 2xx)
