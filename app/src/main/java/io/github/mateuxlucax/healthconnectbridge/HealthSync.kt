@@ -18,7 +18,11 @@ import kotlin.reflect.KClass
 class SetupException(message: String) : Exception(message)
 
 /** Reads Health Connect and uploads mapped samples to the exporter. */
-class HealthSync(private val context: Context, private val settings: Settings) {
+class HealthSync(
+    private val settings: Settings,
+    private val clientFactory: () -> HealthConnectClient,
+) {
+    constructor(context: Context, settings: Settings) : this(settings, { defaultClient(context) })
 
     /** Changes-API sync. Only advances the checkpoint after each successful upload. */
     suspend fun incremental() {
@@ -98,10 +102,7 @@ class HealthSync(private val context: Context, private val settings: Settings) {
         if (settings.serverUrl.isBlank() || settings.token.isBlank()) {
             throw SetupException("Configure a URL do servidor e o token.")
         }
-        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
-            throw SetupException("Health Connect indisponível neste aparelho.")
-        }
-        return HealthConnectClient.getOrCreate(context)
+        return clientFactory()
     }
 
     private suspend fun readableTypes(client: HealthConnectClient): List<KClass<out Record>> {
@@ -114,6 +115,13 @@ class HealthSync(private val context: Context, private val settings: Settings) {
     companion object {
         private const val INITIAL_DAYS = 7L
         private const val EXPIRED_TOKEN_DAYS = 30L
+
+        private fun defaultClient(context: Context): HealthConnectClient {
+            if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+                throw SetupException("Health Connect indisponível neste aparelho.")
+            }
+            return HealthConnectClient.getOrCreate(context)
+        }
 
         /** Record types this device supports (skin temperature needs a recent Health Connect). */
         fun supportedTypes(client: HealthConnectClient): List<KClass<out Record>> {

@@ -41,6 +41,16 @@ jobs:
             echo "::warning::No signing secrets configured; release APK is signed with the debug key."
           fi
 
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          ./gradlew testReleaseUnitTest 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      # Surfaces results as annotations, readable without downloading logs.
+      - name: Report test results
+        if: always()
+        run: python3 .github/report_tests.py "$RUNNER_TEMP/test.log" app/build/test-results
+
       - name: Build release APK
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}

@@ -4,9 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /** User settings and sync checkpoint, persisted in SharedPreferences. */
-class Settings(context: Context) {
-    val prefs: SharedPreferences =
-        context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+class Settings(val prefs: SharedPreferences) {
+    constructor(context: Context) : this(context.getSharedPreferences("settings", Context.MODE_PRIVATE))
 
     var serverUrl: String
         get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
