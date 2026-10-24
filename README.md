@@ -4,6 +4,16 @@ Android app that reads your health data from [Health Connect](https://developer.
 
 Built for a Galaxy Watch + Samsung Health setup, but it works with any app that writes to Health Connect. Personal, sideloaded app: there is no Play Store listing.
 
+## Screenshots
+
+| Synced | Dark theme | Error |
+|---|---|---|
+| ![Main screen after a sync](docs/screenshots/main-light.png) | ![Main screen, dark theme](docs/screenshots/main-dark.png) | ![Main screen with a rejected token](docs/screenshots/main-error.png) |
+
+Launcher icon: ![Launcher icon](docs/screenshots/launcher-icon.png)
+
+Taken on an emulator by the integration test (see [Building](#building)) and refreshed on every push to `main`.
+
 ## Architecture
 
 ```
@@ -69,6 +79,8 @@ At most 5,000 samples per request.
 ## Building
 
 GitHub Actions builds a release APK on every push to `main` (downloadable as a workflow artifact). Pushing a tag like `v1.0.0` also publishes `health-connect-bridge-1.0.0.apk` to a GitHub Release. The version name comes from the tag and the version code from the run number.
+
+The **Integration** workflow runs an end-to-end test on an Android emulator: it inserts records into the real Health Connect, runs the app's sync against [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter) and a real Prometheus, and checks every sample in Prometheus against the [Metrics](#metrics) table (including late records through the Changes API and a rejected token). It also takes the screenshots above.
 
 Locally: `./gradlew assembleRelease` (JDK 17 and the Android SDK are required).
 
