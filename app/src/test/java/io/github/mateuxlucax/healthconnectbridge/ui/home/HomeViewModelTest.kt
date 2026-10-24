@@ -14,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
+import kotlin.coroutines.EmptyCoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -22,7 +23,8 @@ class HomeViewModelTest {
 
     private val prefs = InMemoryPrefs()
     private val settings = SettingsStore(prefs)
-    private val lastValues = LastValues(prefs)
+    /** Parses on the test's dispatcher, so state changes are visible right away. */
+    private val lastValues = LastValues(prefs, EmptyCoroutineContext)
     private var syncRequests = 0
 
     private fun viewModel() = HomeViewModel(settings, lastValues) { syncRequests++ }

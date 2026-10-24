@@ -1,20 +1,25 @@
 package io.github.mateuxlucax.healthconnectbridge.data.local
 
+import io.github.mateuxlucax.healthconnectbridge.model.LastValue
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
 import io.github.mateuxlucax.healthconnectbridge.testing.InMemoryPrefs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.coroutines.EmptyCoroutineContext
 
 class LastValuesTest {
     private val prefs = InMemoryPrefs()
-    private val store = LastValues(prefs)
+    /** Parses on the test's dispatcher, so emissions are seen right away. */
+    private val store = LastValues(prefs, EmptyCoroutineContext)
 
     private fun sample(metric: String, value: Number, t: Long, vararg labels: Pair<String, String>) =
         Sample(metric, mapOf("source" to "app") + labels, value, t)
@@ -89,5 +94,25 @@ class LastValuesTest {
 
         assertEquals(listOf(listOf(1.0), listOf(2.0)), emitted)
         assertEquals(0, prefs.listenerCount)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun values_skipsWritesThatChangeNothing() = runTest {
+        store.record(listOf(sample("health_steps", 2, 2)))
+        val emitted = mutableListOf<List<LastValue>>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { store.values.collect { emitted += it } }
+        store.record(listOf(sample("health_steps", 1, 1))) // older: the stored value stays
+        store.record(listOf(sample("health_steps", 3, 3)))
+        job.cancel()
+
+        assertEquals(listOf(listOf(2.0), listOf(3.0)), emitted.map { values -> values.map { it.value } })
+    }
+
+    @Test
+    fun values_parsesOnTheDefaultDispatcherByDefault() = runBlocking {
+        LastValues(prefs).record(listOf(sample("health_steps", 5, 5)))
+        val values = withTimeout(10_000) { LastValues(prefs).values.first() }
+        assertEquals(listOf(LastValue("health_steps", null, 5.0, 5)), values)
     }
 }
