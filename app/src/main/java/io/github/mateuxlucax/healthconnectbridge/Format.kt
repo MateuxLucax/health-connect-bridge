@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.healthconnectbridge
 
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -18,7 +20,11 @@ class Format(private val strings: Strings) {
         NumberFormat.getNumberInstance(locale).apply {
             minimumFractionDigits = 0
             maximumFractionDigits = maxDecimals
-        }.format(value)
+        }.format(rounded(value, maxDecimals))
+
+    /** [value] rounded to [decimals] places as shown, so signs and units are chosen on the shown value ("0", not "-0"). */
+    private fun rounded(value: Double, decimals: Int): Double =
+        BigDecimal(value).setScale(decimals, RoundingMode.HALF_EVEN).toDouble()
 
     /** "45 min", "1h 32m" / "1h32". */
     fun duration(seconds: Double): String {
@@ -36,10 +42,10 @@ class Format(private val strings: Strings) {
         "health_heart_rate_variability_rmssd_ms" -> "${number(value, 0)} ms"
         "health_oxygen_saturation_percent", "health_body_fat_percent" -> "${number(value)}%"
         "health_respiratory_rate_breaths_per_minute" -> strings.get(R.string.unit_breaths_per_minute, number(value))
-        "health_skin_temperature_delta_celsius" -> (if (value > 0) "+" else "") + "${number(value)} °C"
+        "health_skin_temperature_delta_celsius" -> rounded(value, 1).let { (if (it > 0) "+" else "") + "${number(it)} °C" }
         "health_steps" -> strings.plural(R.plurals.unit_steps, value.toInt(), number(value, 0))
         "health_distance_meters" ->
-            if (value < 1000) "${number(value, 0)} m" else "${number(value / 1000, 2)} km"
+            if (rounded(value, 0) < 1000) "${number(value, 0)} m" else "${number(value / 1000, 2)} km"
         "health_active_calories_kcal", "health_total_calories_kcal" -> "${number(value)} kcal"
         "health_sleep_stage_seconds", "health_sleep_session_seconds", "health_exercise_session_seconds" ->
             duration(value)

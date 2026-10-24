@@ -47,6 +47,16 @@ class FormatTest {
     }
 
     @Test
+    fun signAndUnitFollowTheRoundedValue() {
+        assertEquals("0 °C", en.value("health_skin_temperature_delta_celsius", 0.04))
+        assertEquals("0 °C", en.value("health_skin_temperature_delta_celsius", -0.04))
+        assertEquals("+0.1 °C", en.value("health_skin_temperature_delta_celsius", 0.06))
+        assertEquals("1 km", en.value("health_distance_meters", 999.6))
+        assertEquals("999 m", en.value("health_distance_meters", 999.4))
+        assertEquals("0", en.number(-0.01))
+    }
+
+    @Test
     fun timeOfValue_portuguese() {
         val now = ms("2026-10-24T15:00:00-03:00")
         assertEquals("hoje às 14:32", pt.time(ms("2026-10-24T14:32:00-03:00"), now, zone))
