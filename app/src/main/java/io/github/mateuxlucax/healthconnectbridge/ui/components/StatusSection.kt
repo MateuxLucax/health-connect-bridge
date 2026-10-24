@@ -34,13 +34,16 @@ import io.github.mateuxlucax.healthconnectbridge.ui.format.rememberStrings
 @Composable
 fun HistoryImport(last: BackfillResult?, onImport: (Int) -> Unit) {
     var days by rememberSaveable { mutableStateOf("30") }
-    var scheduled by rememberSaveable { mutableStateOf(false) }
+    // When "Import" was tapped: the finish time of the import shown then (0 = none). "Scheduled" is shown until a
+    // newer import finishes, then that import's result.
+    var scheduledAfter by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scheduled = scheduledAfter != null && scheduledAfter == (last?.finishedMs ?: 0L)
     val parsed = days.toIntOrNull()?.takeIf { it > 0 }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = days,
-                onValueChange = { days = it.filter(Char::isDigit).take(4); scheduled = false },
+                onValueChange = { days = it.filter(Char::isDigit).take(4); scheduledAfter = null },
                 label = { Text(stringResource(R.string.days)) },
                 singleLine = true,
                 isError = parsed == null,
@@ -48,7 +51,7 @@ fun HistoryImport(last: BackfillResult?, onImport: (Int) -> Unit) {
                 modifier = Modifier.width(120.dp),
             )
             Spacer(Modifier.width(16.dp))
-            Button(onClick = { onImport(parsed!!); scheduled = true }, enabled = parsed != null) {
+            Button(onClick = { onImport(parsed!!); scheduledAfter = last?.finishedMs ?: 0L }, enabled = parsed != null) {
                 Text(stringResource(R.string.import_history))
             }
         }
