@@ -10,6 +10,7 @@ def esc(text):
 
 
 log_path, results_dir = sys.argv[1], sys.argv[2]
+title = sys.argv[3] if len(sys.argv) > 3 else "Unit tests"
 total = failed = skipped = 0
 failures = []
 for path in glob.glob(os.path.join(results_dir, "**", "*.xml"), recursive=True):
@@ -26,7 +27,7 @@ for path in glob.glob(os.path.join(results_dir, "**", "*.xml"), recursive=True):
             detail = (problem.get("message") or "") + "\n" + (problem.text or "")[:1500]
             failures.append(f"{case.get('classname')}.{case.get('name')}: {detail}")
 
-print(f"::notice title=Unit tests::{total} tests, {failed} failed, {skipped} skipped")
+print(f"::notice title={title}::{total} tests, {failed} failed, {skipped} skipped")
 for f in failures[:9]:
     print(f"::error title=Test failure::{esc(f)}")
 if len(failures) > 9:

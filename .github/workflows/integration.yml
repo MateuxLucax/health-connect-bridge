@@ -1,0 +1,105 @@
+name: Integration
+
+# End to end on an emulator: real Health Connect -> app -> exporter -> Prometheus.
+# Also refreshes the README screenshots in docs/screenshots.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: MateuxLucax/health-connect-prometheus-exporter
+          path: exporter
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: exporter/go.mod
+          cache: false
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Generate token
+        run: |
+          token=$(openssl rand -hex 16)
+          echo "::add-mask::$token"
+          echo "AUTH_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Start Prometheus
+        run: |
+          curl -sSfL https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz | tar xz -C "$RUNNER_TEMP"
+          # exporter/prometheus.yml sets storage.tsdb.out_of_order_time_window: 30d.
+          nohup "$RUNNER_TEMP/prometheus-3.5.0.linux-amd64/prometheus" --config.file=exporter/prometheus.yml \
+            --storage.tsdb.path="$RUNNER_TEMP/prometheus-data" --web.enable-remote-write-receiver \
+            --web.listen-address=0.0.0.0:9090 > "$RUNNER_TEMP/prometheus.log" 2>&1 &
+          curl -sSf --retry 30 --retry-delay 1 --retry-all-errors http://localhost:9090/-/ready
+
+      - name: Start exporter
+        working-directory: exporter
+        env:
+          REMOTE_WRITE_URL: http://localhost:9090/api/v1/write
+          LISTEN_ADDR: 0.0.0.0:8080
+        run: |
+          go build -o "$RUNNER_TEMP/exporter" .
+          nohup "$RUNNER_TEMP/exporter" > "$RUNNER_TEMP/exporter.log" 2>&1 &
+          curl -sSf --retry 30 --retry-delay 1 --retry-all-errors http://localhost:8080/healthz
+
+      # The emulator reaches the host's exporter and Prometheus at 10.0.2.2.
+      - name: Instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 37
+          target: google_apis
+          arch: x86_64
+          script: |
+            adb shell settings put global sysui_demo_allowed 1
+            adb shell am broadcast -a com.android.systemui.demo -e command enter
+            adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1000
+            adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+            bash -o pipefail -c './gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.token="$AUTH_TOKEN" 2>&1 | tee "$RUNNER_TEMP/test.log"; s=$?; adb logcat -d > "$RUNNER_TEMP/logcat.txt"; exit $s'
+            mkdir -p docs
+            adb pull /data/local/tmp/screenshots docs/
+
+      - name: Report test results
+        if: always()
+        run: python3 .github/report_tests.py "$RUNNER_TEMP/test.log" app/build/outputs/androidTest-results "Instrumented tests"
+
+      - name: Report server and device logs
+        if: failure()
+        run: |
+          annotate() { echo "::warning title=$1::$(tail -n 40 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; }
+          annotate "Exporter log" < "$RUNNER_TEMP/exporter.log" || true
+          annotate "Prometheus log" < "$RUNNER_TEMP/prometheus.log" || true
+          grep -E "TestRunner|AndroidRuntime|HealthConnect|healthconnectbridge" "$RUNNER_TEMP/logcat.txt" | annotate "Logcat" || true
+
+      - name: Commit screenshots
+        run: |
+          git add docs/screenshots
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update screenshots [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
