@@ -103,7 +103,9 @@ Locally: `./gradlew assembleRelease` (JDK 17 and the Android SDK are required).
 
 ### Release signing
 
-Without signing secrets the APK is signed with a throwaway debug key, which changes between builds, so you would have to uninstall before each update. To sign with your own key, create a keystore once:
+Tagged releases require the four signing secrets below: the Build workflow fails on a `v*` tag without them. Builds of `main` and manual runs without secrets fall back to a throwaway debug key, which changes between builds, so you would have to uninstall before each update. Every build prints the APK's signer certificate SHA-256 in the job summary, and releases append it to the release notes, so you can check it with `apksigner verify --print-certs` before installing.
+
+Create a keystore once:
 
 ```sh
 keytool -genkeypair -v -keystore release.jks -alias release \

@@ -6,37 +6,55 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# Actions are pinned to commit SHAs (tag in the comment). The signing secrets are only in the build job,
+# which can't write to the repository; the release job can, but never sees the secrets.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.name }}
+      signer: ${{ steps.signer.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Compute version
+        id: version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            name="${GITHUB_REF_NAME#v}"
           else
-            echo "VERSION_NAME=0.0.0-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+            name="0.0.0-${GITHUB_SHA::7}"
           fi
+          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
 
+      # Tagged releases must be signed with the release key: a debug key changes on every build,
+      # so updates would fail to install over the previous version.
       - name: Decode signing keystore
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ] && [ -n "$SIGNING_STORE_PASSWORD" ] && [ -n "$SIGNING_KEY_ALIAS" ] && [ -n "$SIGNING_KEY_PASSWORD" ]; then
             echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "::error::Tagged releases must be signed with the release key. Set the repository secrets SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS and SIGNING_KEY_PASSWORD (see README, Release signing)."
+            exit 1
           else
             echo "::warning::No signing secrets configured; release APK is signed with the debug key."
           fi
@@ -59,21 +77,50 @@ jobs:
         run: |
           ./gradlew assembleRelease -PversionName="$VERSION_NAME" -PversionCode="$GITHUB_RUN_NUMBER"
           cp app/build/outputs/apk/release/app-release.apk "health-connect-bridge-$VERSION_NAME.apk"
+          rm -f "$RUNNER_TEMP/release.jks"
 
-      - uses: actions/upload-artifact@v7
+      # Lets users check the APK's signer before installing (apksigner from the runner's Android SDK).
+      - name: Signer certificate
+        id: signer
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          sha256=$("$apksigner" verify --print-certs "health-connect-bridge-$VERSION_NAME.apk" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ -z "$sha256" ]; then echo "::error::Could not read the APK signer certificate"; exit 1; fi
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "Signer certificate SHA-256: \`$sha256\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: health-connect-bridge-${{ env.VERSION_NAME }}
           path: health-connect-bridge-${{ env.VERSION_NAME }}.apk
 
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      APK: health-connect-bridge-${{ needs.build.outputs.version }}.apk
+      SIGNER_NOTE: "APK signer certificate SHA-256: `${{ needs.build.outputs.signer }}`"
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: health-connect-bridge-${{ needs.build.outputs.version }}
+
+      # The release may already exist when it was drafted and published in the GitHub UI.
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # The release may already exist when it was drafted and published in the GitHub UI.
         run: |
-          apk="health-connect-bridge-$VERSION_NAME.apk"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
+            gh release upload "$GITHUB_REF_NAME" "$APK" --clobber
+            notes=$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)
+            if [[ "$notes" != *"$SIGNER_NOTE"* ]]; then
+              gh release edit "$GITHUB_REF_NAME" --notes "$(printf '%s\n\n%s' "$notes" "$SIGNER_NOTE")"
+            fi
           else
-            gh release create "$GITHUB_REF_NAME" "$apk" --title "$GITHUB_REF_NAME" --generate-notes
+            # GitHub puts --notes before the generated notes.
+            gh release create "$GITHUB_REF_NAME" "$APK" --title "$GITHUB_REF_NAME" --generate-notes --notes "$SIGNER_NOTE"
           fi
