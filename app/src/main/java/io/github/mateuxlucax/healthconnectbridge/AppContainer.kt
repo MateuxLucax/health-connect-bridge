@@ -11,6 +11,7 @@ import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.sync.HealthSync
 import io.github.mateuxlucax.healthconnectbridge.sync.SyncScheduler
+import io.github.mateuxlucax.healthconnectbridge.ui.DeviceStatusViewModel
 import io.github.mateuxlucax.healthconnectbridge.ui.home.HomeViewModel
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel
 import io.github.mateuxlucax.healthconnectbridge.ui.settings.SettingsViewModel
@@ -34,13 +35,21 @@ class AppContainer(context: Context) {
     /** A sync engine reading the real Health Connect; used by [SyncWorker]. */
     fun healthSync() = HealthSync(appContext, settings, lastValues, exporterClient)
 
-    /** Whether Android 17 local network protection would block connecting to [url]. */
-    suspend fun localNetworkBlocked(url: String): Boolean = LocalNetwork.isBlocked(appContext, url)
+    /**
+     * Whether Android 17 local network protection would block connecting to a URL. Bound to the application
+     * context, so the screens' ViewModels can hold it.
+     */
+    val localNetworkBlocked: suspend (String) -> Boolean = { url -> LocalNetwork.isBlocked(appContext, url) }
 
     /** Creates the screens' ViewModels with their dependencies. */
     val viewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { OnboardingViewModel(settings, exporterClient, syncScheduler::backfill, syncScheduler::schedulePeriodic) }
+        initializer {
+            OnboardingViewModel(
+                settings, exporterClient, syncScheduler::backfill, syncScheduler::schedulePeriodic, localNetworkBlocked,
+            )
+        }
         initializer { HomeViewModel(settings, lastValues, syncScheduler::syncNow) }
-        initializer { SettingsViewModel(settings, exporterClient, syncScheduler::backfill) }
+        initializer { SettingsViewModel(settings, exporterClient, syncScheduler::backfill, localNetworkBlocked) }
+        initializer { DeviceStatusViewModel(deviceStatusRepository::load) }
     }
 }

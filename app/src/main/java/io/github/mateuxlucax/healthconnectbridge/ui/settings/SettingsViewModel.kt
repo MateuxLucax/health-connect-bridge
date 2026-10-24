@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
 import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.model.BackfillResult
-import io.github.mateuxlucax.healthconnectbridge.ui.components.ConnectionTest
-import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import io.github.mateuxlucax.healthconnectbridge.ui.WhileUiSubscribed
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SetupForm
+import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -20,34 +20,21 @@ data class SettingsUiState(
 
 /** State and actions of the Settings tab. The form fields are UI element state, kept by the screen. */
 class SettingsViewModel(
-    private val settings: SettingsStore,
+    settings: SettingsStore,
     exporter: ExporterClient,
     /** Enqueues a history import of that many days (SyncScheduler.backfill). */
-    private val requestBackfill: (Int) -> Unit,
+    requestBackfill: (Int) -> Unit,
+    /** Whether Android 17 local network protection would block connecting to a URL. */
+    localNetworkBlocked: suspend (String) -> Boolean = { false },
 ) : ViewModel() {
-    private val connectionTest = ConnectionTest(viewModelScope, exporter)
+    /** The server section's form and the history import. */
+    val form = SetupForm(viewModelScope, settings, exporter, requestBackfill, localNetworkBlocked)
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(settings.syncState, connectionTest.result) { sync, test -> SettingsUiState(sync.lastBackfill, test) }
+        combine(settings.syncState, form.testResult) { sync, test -> SettingsUiState(sync.lastBackfill, test) }
             .stateIn(
                 viewModelScope,
                 WhileUiSubscribed,
-                SettingsUiState(settings.lastBackfill, connectionTest.result.value),
+                SettingsUiState(settings.lastBackfill, form.testResult.value),
             )
-
-    /** Saved values, to fill the form when it opens. */
-    val savedServerUrl: String get() = settings.serverUrl
-    val savedToken: String get() = settings.token
-
-    fun save(url: String, token: String) {
-        settings.serverUrl = url.trim()
-        settings.token = token.trim()
-    }
-
-    fun importHistory(days: Int) = requestBackfill(days)
-
-    fun testConnection(url: String, token: String, ensureLocalNetwork: suspend (String) -> Boolean) =
-        connectionTest.run(url, token, ensureLocalNetwork)
-
-    fun clearTest() = connectionTest.clear()
 }

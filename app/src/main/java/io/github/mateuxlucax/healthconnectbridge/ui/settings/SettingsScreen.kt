@@ -14,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,6 +39,7 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.SectionCard
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
+import io.github.mateuxlucax.healthconnectbridge.ui.components.launchConnectionTest
 import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
 import kotlinx.coroutines.launch
 
@@ -52,13 +52,13 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val form = viewModel.form
     val context = LocalContext.current
-    var url by rememberSaveable { mutableStateOf(viewModel.savedServerUrl) }
-    var token by rememberSaveable { mutableStateOf(viewModel.savedToken) }
+    var url by rememberSaveable { mutableStateOf(form.savedServerUrl) }
+    var token by rememberSaveable { mutableStateOf(form.savedToken) }
     val scope = rememberCoroutineScope()
-    val localNetworkAccess = rememberLocalNetworkAccess(actions)
-    // Like the form, the test result belongs to this visit of the tab.
-    DisposableEffect(viewModel) { onDispose { viewModel.clearTest() } }
+    // Like the form, the test result belongs to this visit of the tab: App clears it when leaving the tab.
+    val localNetworkAccess = rememberLocalNetworkAccess(form::isLocalNetworkBlocked, actions)
     val filled = ServerUrl.isValid(url) && token.isNotBlank()
 
     Column(
@@ -66,15 +66,19 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SectionCard(stringResource(R.string.section_server)) {
-            ServerFields(url, { url = it; viewModel.clearTest() }, token, { token = it; viewModel.clearTest() })
-            LocalNetworkNotice(url, status, actions)
+            ServerFields(url, { url = it; form.clearTest() }, token, { token = it; form.clearTest() })
+            LocalNetworkNotice(url, status, form::isLocalNetworkBlocked, actions)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { viewModel.testConnection(url, token, localNetworkAccess) }, enabled = filled, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { scope.launchConnectionTest(form, { url }, { token }, localNetworkAccess) },
+                    enabled = filled,
+                    modifier = Modifier.weight(1f),
+                ) {
                     Text(stringResource(R.string.test_connection))
                 }
                 Button(
                     onClick = {
-                        viewModel.save(url, token)
+                        form.save(url, token)
                         Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
                         // Saved either way; a denial stays visible in the notice above and on Home.
                         scope.launch { localNetworkAccess(url.trim()) }
@@ -88,7 +92,7 @@ fun SettingsScreen(
 
         SectionCard(stringResource(R.string.section_history)) {
             BodyText(stringResource(R.string.history_settings_text))
-            HistoryImport(state.lastBackfill) { viewModel.importHistory(it) }
+            HistoryImport(state.lastBackfill) { form.importHistory(it) }
         }
 
         SectionCard(stringResource(R.string.section_permissions)) {

@@ -29,39 +29,48 @@ One Gradle module with packages by layer, and features inside `ui/`
 - `sync`: `HealthSync`, `SyncRunner` (mutex, outcome, WorkManager result),
   `SyncScheduler` (unique work), `SyncErrors` (exception to `SyncError`).
 - `ui`: `App`, `theme`, `format` (strings, formatting, error messages),
-  `components` (shared composables, the catalog, the `ConnectionTest` state
-  holder), and `onboarding`, `home`, `settings`, each with its screen and
-  ViewModel.
+  `components` (shared composables, the catalog, the `SetupForm` and
+  `ConnectionTest` state holders), `DeviceStatusViewModel`, and `onboarding`,
+  `home`, `settings`, each with its screen and ViewModel.
 - The root package holds the Android entry points and the wiring:
   `MainActivity`, `PrivacyActivity`, `SyncWorker`, `BridgeApplication`,
   `AppContainer`.
 
 Imports go one way: `model` <- `data` <- `sync` <- `ui` <- root. Only `ui`
-(and the root) uses `R` and `BuildConfig`; nothing imports the root package.
-`LayerDependencyTest` checks this.
+(and the root) uses `R` and `BuildConfig`; no layer imports or names
+anything else in the root package. `LayerDependencyTest` checks imports and
+fully qualified names.
 
 No domain layer or use cases: `HealthSync` is the only complex logic and has
 one caller.
 
 **Manual dependency injection.** `BridgeApplication` (the manifest's
-`android:name`) creates one `AppContainer`, which builds the stores, the
-exporter client, the scheduler, the device status repository and a
-`ViewModelProvider.Factory` (`viewModelFactory { initializer { } }`).
+`android:name`) creates one `AppContainer` on first use (WorkManager can
+start a worker before `Application.onCreate`), which builds the stores, the
+exporter client, the scheduler, the device status repository, the local
+network check and a `ViewModelProvider.Factory`
+(`viewModelFactory { initializer { } }`).
 `MainActivity` passes the factory to the screens, and `SyncWorker` takes its
 dependencies from the container. No DI framework ([ADR 0004](0004-minimal-dependencies.md)).
 
-**ViewModels.** `OnboardingViewModel`, `HomeViewModel` and
-`SettingsViewModel` expose one immutable UI state as a `StateFlow`
+**ViewModels.** `OnboardingViewModel`, `HomeViewModel`,
+`SettingsViewModel` and `DeviceStatusViewModel` expose one immutable UI state as a `StateFlow`
 (`stateIn(WhileSubscribed(5 s))`, collected with
 `collectAsStateWithLifecycle`) and plain methods; one-off feedback (toasts)
 stays in the composable. They get no `Context`: the scheduler is passed as
 functions, so JVM tests use the existing fakes. The stores' flows are
 `callbackFlow`s around `OnSharedPreferenceChangeListener`, so a sync written
 by `SyncWorker` shows up without counters. Form fields and the onboarding
-step stay in `rememberSaveable`; the device status is still reloaded in
-`App` on resume and after permission requests (`refreshKey`), because it
-depends on the activity lifecycle. Permission requests stay in
-`MainActivity` and reach the screens as `AppActions`.
+step stay in `rememberSaveable`. The device status depends on the activity
+lifecycle, so `App` asks `DeviceStatusViewModel` to reload it on resume and
+after permission requests (`refreshKey`). The onboarding and Settings
+ViewModels share the server form and history import through one
+`SetupForm` (composition, no base class); its connection test result lives
+in the ViewModel, so it survives rotation, and is cleared only by a field
+edit or by leaving the server step or the Settings tab. Permission requests
+stay in `MainActivity` and reach the screens as `AppActions`, which never
+go into a ViewModel: the screen settles local network access (asking for
+the permission if needed) and passes only the answer.
 
 **Names that never change.** WorkManager stores the worker's fully
 qualified class name with every job (the periodic job is kept indefinitely)

@@ -27,15 +27,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.mateuxlucax.healthconnectbridge.R
-import io.github.mateuxlucax.healthconnectbridge.data.DeviceStatusRepository
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
 import io.github.mateuxlucax.healthconnectbridge.ui.components.Logo
 import io.github.mateuxlucax.healthconnectbridge.ui.home.HomeScreen
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingScreen
 import io.github.mateuxlucax.healthconnectbridge.ui.settings.SettingsScreen
-import kotlinx.coroutines.CancellationException
+import io.github.mateuxlucax.healthconnectbridge.ui.settings.SettingsViewModel
 
 /**
  * Onboarding on first launch ([onboardingDone] false), then the two tabs. Each screen gets its ViewModel from
@@ -45,24 +45,15 @@ import kotlinx.coroutines.CancellationException
 @Composable
 fun App(
     viewModelFactory: ViewModelProvider.Factory,
-    deviceStatus: DeviceStatusRepository,
     onboardingDone: Boolean,
     refreshKey: Int,
     actions: AppActions,
 ) {
-    // The last loaded status stays shown while it reloads; a failed load is shown, not hidden as "no status".
-    var status by remember { mutableStateOf<DeviceStatus?>(null) }
-    var statusFailed by remember { mutableStateOf(false) }
-    LaunchedEffect(refreshKey) {
-        statusFailed = try {
-            status = deviceStatus.load()
-            false
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            true
-        }
-    }
+    val deviceStatus: DeviceStatusViewModel = viewModel(factory = viewModelFactory)
+    LaunchedEffect(refreshKey) { deviceStatus.refresh() }
+    val statusState by deviceStatus.uiState.collectAsStateWithLifecycle()
+    val status = statusState.status
+    val statusFailed = statusState.failed
     var showMain by remember { mutableStateOf(onboardingDone) }
 
     if (!showMain) {
@@ -81,6 +72,8 @@ private fun MainScreen(
     actions: AppActions,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    // Activity-scoped, like the one SettingsScreen gets: leaving the tab is a deliberate end of its connection test.
+    val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -97,7 +90,10 @@ private fun MainScreen(
             NavigationBar {
                 NavigationBarItem(
                     selected = tab == 0,
-                    onClick = { tab = 0 },
+                    onClick = {
+                        if (tab != 0) settingsViewModel.form.clearTest()
+                        tab = 0
+                    },
                     icon = { Icon(painterResource(R.drawable.ic_home), contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_home)) },
                 )
@@ -114,7 +110,7 @@ private fun MainScreen(
         if (tab == 0) {
             HomeScreen(viewModel(factory = viewModelFactory), status, actions, modifier)
         } else {
-            SettingsScreen(viewModel(factory = viewModelFactory), status, statusFailed, actions, modifier)
+            SettingsScreen(settingsViewModel, status, statusFailed, actions, modifier)
         }
     }
 }

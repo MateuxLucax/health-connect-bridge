@@ -6,9 +6,9 @@ import io.github.mateuxlucax.healthconnectbridge.data.exporter.ExporterClient
 import io.github.mateuxlucax.healthconnectbridge.data.local.SettingsStore
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
-import io.github.mateuxlucax.healthconnectbridge.ui.components.ConnectionTest
-import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import io.github.mateuxlucax.healthconnectbridge.ui.WhileUiSubscribed
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SetupForm
+import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -24,19 +24,18 @@ class OnboardingViewModel(
     private val settings: SettingsStore,
     exporter: ExporterClient,
     /** Enqueues a history import of that many days (SyncScheduler.backfill). */
-    private val requestBackfill: (Int) -> Unit,
+    requestBackfill: (Int) -> Unit,
     /** Schedules the periodic sync (SyncScheduler.schedulePeriodic). */
     private val schedulePeriodicSync: () -> Unit,
+    /** Whether Android 17 local network protection would block connecting to a URL. */
+    localNetworkBlocked: suspend (String) -> Boolean = { false },
 ) : ViewModel() {
-    private val connectionTest = ConnectionTest(viewModelScope, exporter)
+    /** The server step's form and the history step's import. */
+    val form = SetupForm(viewModelScope, settings, exporter, requestBackfill, localNetworkBlocked)
 
-    val uiState: StateFlow<OnboardingUiState> = connectionTest.result
+    val uiState: StateFlow<OnboardingUiState> = form.testResult
         .map { OnboardingUiState(it) }
-        .stateIn(viewModelScope, WhileUiSubscribed, OnboardingUiState(connectionTest.result.value))
-
-    /** Saved values, to fill the form when it opens. */
-    val savedServerUrl: String get() = settings.serverUrl
-    val savedToken: String get() = settings.token
+        .stateIn(viewModelScope, WhileUiSubscribed, OnboardingUiState(form.testResult.value))
 
     /** Whether "Next" is enabled: the server step needs a valid URL and a token, the permissions step one read. */
     fun canContinue(step: Int, url: String, token: String, status: DeviceStatus?): Boolean = when (step) {
@@ -45,23 +44,11 @@ class OnboardingViewModel(
         else -> true
     }
 
-    fun saveServer(url: String, token: String) {
-        settings.serverUrl = url.trim()
-        settings.token = token.trim()
-    }
-
-    fun importHistory(days: Int) = requestBackfill(days)
-
     /** Onboarding is done for good: the periodic sync starts. */
     fun finish() {
         settings.onboardingDone = true
         schedulePeriodicSync()
     }
-
-    fun testConnection(url: String, token: String, ensureLocalNetwork: suspend (String) -> Boolean) =
-        connectionTest.run(url, token, ensureLocalNetwork)
-
-    fun clearTest() = connectionTest.clear()
 
     companion object {
         const val STEPS = 5

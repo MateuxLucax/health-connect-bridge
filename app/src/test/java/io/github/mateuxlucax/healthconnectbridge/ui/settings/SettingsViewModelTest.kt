@@ -36,16 +36,16 @@ class SettingsViewModelTest {
 
     @Test
     fun save_trimsAndStores() {
-        vm.save(" http://192.168.0.10:8080 ", " secret ")
+        vm.form.save(" http://192.168.0.10:8080 ", " secret ")
         assertEquals("http://192.168.0.10:8080", settings.serverUrl)
         assertEquals("secret", settings.token)
-        assertEquals("http://192.168.0.10:8080", vm.savedServerUrl)
-        assertEquals("secret", vm.savedToken)
+        assertEquals("http://192.168.0.10:8080", vm.form.savedServerUrl)
+        assertEquals("secret", vm.form.savedToken)
     }
 
     @Test
     fun importHistory_requestsABackfill() {
-        vm.importHistory(30)
+        vm.form.importHistory(30)
         assertEquals(listOf(30), backfills)
     }
 
@@ -59,7 +59,7 @@ class SettingsViewModelTest {
 
     @Test
     fun connectionTest_ok() = runBlocking {
-        vm.testConnection(server.url, "t") { true }
+        vm.form.testConnection(server.url, "t", localNetworkAllowed = true)
         val state = withTimeout(10_000) { vm.uiState.first { it.testResult?.ok != null } }
         assertEquals(true, state.testResult?.ok)
         assertEquals("Bearer t", server.requests.single().headers["authorization"])
@@ -67,7 +67,7 @@ class SettingsViewModelTest {
 
     @Test
     fun connectionTest_deniedLocalNetwork_failsWithoutARequest() = runBlocking {
-        vm.testConnection(server.url, "t") { false }
+        vm.form.testConnection(server.url, "t", localNetworkAllowed = false)
         val state = withTimeout(10_000) { vm.uiState.first { it.testResult?.ok != null } }
         assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), state.testResult?.error)
         assertEquals(0, server.requests.size)
@@ -75,9 +75,21 @@ class SettingsViewModelTest {
 
     @Test
     fun clearTest_removesTheResult() = runBlocking {
-        vm.testConnection("ftp://example.com", "t") { true }
+        vm.form.testConnection("ftp://example.com", "t", localNetworkAllowed = true)
         withTimeout(10_000) { vm.uiState.first { it.testResult?.ok == false } }
-        vm.clearTest()
+        vm.form.clearTest()
         assertNull(withTimeout(10_000) { vm.uiState.first { it.testResult == null } }.testResult)
+    }
+
+    @Test
+    fun connectionTest_survivesTheScreenGoingAway() = runBlocking {
+        val screen = launch { vm.uiState.collect {} }
+        vm.form.testConnection(server.url, "t", localNetworkAllowed = true)
+        withTimeout(10_000) { vm.uiState.first { it.testResult?.ok == true } }
+        screen.cancel() // e.g. a rotation: the composition goes, the ViewModel stays
+
+        // Nothing clears the result but an explicit call (field edit, leaving the tab).
+        assertEquals(true, withTimeout(10_000) { vm.uiState.first() }.testResult?.ok)
+        assertEquals(1, server.requests.size)
     }
 }

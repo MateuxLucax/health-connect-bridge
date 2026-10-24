@@ -19,7 +19,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -28,17 +27,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import io.github.mateuxlucax.healthconnectbridge.R
-import io.github.mateuxlucax.healthconnectbridge.data.network.LocalNetwork
 import io.github.mateuxlucax.healthconnectbridge.data.network.ServerUrl
 import io.github.mateuxlucax.healthconnectbridge.model.DeviceStatus
 import io.github.mateuxlucax.healthconnectbridge.model.SyncError
 import io.github.mateuxlucax.healthconnectbridge.ui.AppActions
 import io.github.mateuxlucax.healthconnectbridge.ui.format.message
 import io.github.mateuxlucax.healthconnectbridge.ui.format.rememberStrings
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun TestResultLine(result: TestResult?, onOpenSettings: () -> Unit) {
@@ -106,34 +103,66 @@ fun ServerFields(url: String, onUrlChange: (String) -> Unit, token: String, onTo
 }
 
 /**
- * For [ConnectionTest] and saving: true when the server at the URL is reachable, i.e. it isn't local, local
- * network access is granted, or the user grants it now.
+ * For the connection test and saving: true when the server at the URL is reachable, i.e. [isBlocked] says it
+ * isn't blocked (not local, or access granted), or the user grants local network access now. Runs in the
+ * caller's composition scope, the only place that may hold [actions] (bound to the activity).
  */
 @Composable
-fun rememberLocalNetworkAccess(actions: AppActions): suspend (String) -> Boolean {
-    val context = LocalContext.current.applicationContext
-    return remember<suspend (String) -> Boolean>(actions) {
-        { url -> !LocalNetwork.isBlocked(context, url) || actions.requestLocalNetwork() }
+fun rememberLocalNetworkAccess(isBlocked: suspend (String) -> Boolean, actions: AppActions): suspend (String) -> Boolean =
+    remember<suspend (String) -> Boolean>(isBlocked, actions) {
+        { url -> !isBlocked(url) || actions.requestLocalNetwork() }
+    }
+
+/**
+ * Starts "Test connection" of [form] with the current field values ([url], [token] read them). Local network
+ * access is settled here first, asking for the permission if needed, and [form] gets only the answer, so no
+ * ViewModel coroutine holds the activity. A test whose fields change meanwhile is dropped.
+ */
+fun CoroutineScope.launchConnectionTest(
+    form: SetupForm,
+    url: () -> String,
+    token: () -> String,
+    localNetworkAccess: suspend (String) -> Boolean,
+) {
+    val testedUrl = url()
+    val testedToken = token()
+    form.markTestRunning()
+    launch {
+        var started = false
+        try {
+            val allowed = localNetworkAccess(testedUrl.trim())
+            if (url() == testedUrl && token() == testedToken) {
+                form.testConnection(testedUrl, testedToken, allowed)
+                started = true
+            }
+        } finally {
+            // Edited, or the screen went away (e.g. rotated) during the prompt: don't leave "running" behind.
+            if (!started) form.clearTest()
+        }
     }
 }
 
-/** On Android 17+, explains that the local server at [url] needs the local network permission, until granted. */
+/**
+ * On Android 17+, explains that the local server at [url] needs the local network permission, until granted.
+ * [isBlocked] is the check of the screen's [SetupForm].
+ */
 @Composable
-fun LocalNetworkNotice(url: String, status: DeviceStatus?, actions: AppActions) {
-    val context = LocalContext.current
+fun LocalNetworkNotice(url: String, status: DeviceStatus?, isBlocked: suspend (String) -> Boolean, actions: AppActions) {
     val scope = rememberCoroutineScope()
-    // Re-read whenever the status reloads, e.g. after the permission request or returning from settings.
-    val granted = remember(status) { LocalNetwork.isGranted(context) }
-    // Resolved after a pause in typing; the last answer stays shown meanwhile.
-    val local by produceState(false, url, granted) {
-        if (granted || !ServerUrl.isValid(url)) {
+    // The URL of the last answer; only a changed URL waits for a pause in typing.
+    val checkedUrl = remember { mutableStateOf<String?>(null) }
+    // Re-checked whenever the status reloads (e.g. after the permission request or returning from settings) and
+    // when the URL changes; the last answer stays shown meanwhile.
+    val blocked by produceState(false, url, status) {
+        if (!ServerUrl.isValid(url)) {
             value = false
             return@produceState
         }
-        delay(500)
-        value = withContext(Dispatchers.IO) { LocalNetwork.isLocal(url) }
+        if (url != checkedUrl.value) delay(500)
+        value = isBlocked(url)
+        checkedUrl.value = url
     }
-    if (granted || !local) return
+    if (!blocked) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusLine(null, stringResource(R.string.local_network_needed))
         OutlinedButton(onClick = { scope.launch { actions.requestLocalNetwork() } }, modifier = Modifier.fillMaxWidth()) {

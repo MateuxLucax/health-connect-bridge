@@ -36,11 +36,12 @@ flowchart TB
         wk["SyncWorker<br/>WorkManager entry, delegates to SyncRunner"]
     end
     subgraph ui["ui (Jetpack Compose, Material 3)"]
-        appc["App<br/>onboarding or Home/Settings tabs, device status"]
+        appc["App<br/>onboarding or Home/Settings tabs"]
+        dsvm["DeviceStatusViewModel"]
         onb["OnboardingScreen + OnboardingViewModel"]
         home["HomeScreen + HomeViewModel"]
         set["SettingsScreen + SettingsViewModel"]
-        ct["ConnectionTest<br/>state holder"]
+        ct["SetupForm + ConnectionTest<br/>server form, history import, connection test"]
     end
     subgraph sync["sync"]
         sch["SyncScheduler<br/>periodic, sync-now, backfill"]
@@ -66,13 +67,15 @@ flowchart TB
     appc --> onb
     appc --> home
     appc --> set
-    appc --> dsr
+    appc --> dsvm
+    dsvm --> dsr
     onb --> ct
     set --> ct
     ct --> exc
-    onb -->|"backfill, schedule periodic"| sch
+    ct -->|local network check| net
+    ct -->|backfill| sch
+    onb -->|schedule periodic| sch
     home -->|sync now| sch
-    set -->|backfill| sch
     home -->|"sync state, last values (flows)"| st
     set -->|"server, last backfill"| st
     onb -->|server, onboarding done| st
@@ -111,11 +114,11 @@ One Gradle module; packages by layer, features inside `ui/`
 | `sync` | `HealthSync.kt` | Changes API sync, initial reads, backfill; skips records Health Connect can't read ([ADR 0014](adr/0014-skip-unreadable-records.md)) |
 | | `SyncRunner.kt`, `SyncErrors.kt` | One run at a time; records the outcome and returns success, failure or retry; maps exceptions to `SyncError` kinds (shared with the connection test) |
 | | `SyncScheduler.kt` | Unique work: `periodic-sync`, `sync-now`, `backfill` |
-| `ui` | `App.kt`, `AppActions.kt`, `WhileUiSubscribed.kt` | Onboarding until finished, then the Home and Settings tabs; activity callbacks passed to the screens |
+| `ui` | `App.kt`, `AppActions.kt`, `DeviceStatusViewModel.kt`, `WhileUiSubscribed.kt` | Onboarding until finished, then the Home and Settings tabs; activity callbacks passed to the screens; the device status, reloaded on resume |
 | `ui/onboarding` | `OnboardingScreen.kt`, `OnboardingViewModel.kt`, `DataFlow.kt` | Welcome (with the data flow animation), server (URL, token, connection test), permissions, battery, history import |
 | `ui/home` | `HomeScreen.kt`, `HomeViewModel.kt` | Last success or last error, "sync now", last value per metric |
 | `ui/settings` | `SettingsScreen.kt`, `SettingsViewModel.kt` | Server settings and connection test, history import, permission and battery state |
-| `ui/components` | `Components.kt`, `ServerSection.kt`, `StatusSection.kt`, `ConnectionTest.kt`, `DataTypeCatalog.kt` | Shared composables, the connection test state holder, data types as shown to the user |
+| `ui/components` | `Components.kt`, `ServerSection.kt`, `StatusSection.kt`, `SetupForm.kt`, `ConnectionTest.kt`, `DataTypeCatalog.kt` | Shared composables; the server form, history import and connection test shared by the onboarding and Settings ViewModels; data types as shown to the user |
 | `ui/format` | `Strings.kt`, `Format.kt`, `SyncErrorText.kt` | String resource lookup, locale-aware formatting, error messages |
 | `ui/theme` | `Theme.kt` | Dynamic color theme |
 | `res` | `values`, `values-pt-rBR` | UI text in English (default) and Brazilian Portuguese |
@@ -141,12 +144,13 @@ flowchart LR
 | `model` | Kotlin, Java, Health Connect constants | anything else in the app, `Context`, `R` |
 | `data` | `model`, other `data` packages, Android and Health Connect APIs | `sync`, `ui`, `R` |
 | `sync` | `data`, `model`, WorkManager | `ui`, `R` |
-| `ui` | `sync` (`SyncErrors`), `data`, `model`, `R`, `BuildConfig` | the root package: activity callbacks arrive as `AppActions`, dependencies through the ViewModel factory |
-| root | everything | (nothing imports it) |
+| `ui` | `sync` (`SyncErrors`), `data`, `model`, `R`, `BuildConfig` | the rest of the root package: activity callbacks arrive as `AppActions`, dependencies through the ViewModel factory |
+| root | everything | (no layer imports or names it) |
 
-Screens get their data through their ViewModel; composables in
-`ui/components` use only pure helpers such as `ServerUrl.isValid` and the
-local network checks. `SyncWorker`, `MainActivity` and `PrivacyActivity`
+Screens get their data through their ViewModel (the device status through
+`DeviceStatusViewModel`); composables in `ui/components` use only pure
+helpers such as `ServerUrl.isValid`, and get the local network check from
+`SetupForm`. `SyncWorker`, `MainActivity` and `PrivacyActivity`
 never move or change name: WorkManager and the manifest refer to them.
 
 ## Deployment

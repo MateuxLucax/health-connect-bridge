@@ -27,7 +27,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,6 +56,7 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.PermissionState
 import io.github.mateuxlucax.healthconnectbridge.ui.components.ServerFields
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResultLine
 import io.github.mateuxlucax.healthconnectbridge.ui.components.TestResult
+import io.github.mateuxlucax.healthconnectbridge.ui.components.launchConnectionTest
 import io.github.mateuxlucax.healthconnectbridge.ui.components.rememberLocalNetworkAccess
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.BATTERY_STEP
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.PERMISSIONS_STEP
@@ -74,12 +74,18 @@ fun OnboardingScreen(
     onFinish: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val form = viewModel.form
     var step by rememberSaveable { mutableIntStateOf(0) }
-    var url by rememberSaveable { mutableStateOf(viewModel.savedServerUrl) }
-    var token by rememberSaveable { mutableStateOf(viewModel.savedToken) }
-    BackHandler(enabled = step > 0) { step-- }
+    var url by rememberSaveable { mutableStateOf(form.savedServerUrl) }
+    var token by rememberSaveable { mutableStateOf(form.savedToken) }
+    // The test result belongs to this visit of the server step: leaving it clears the result (rotation keeps it).
+    fun goTo(next: Int) {
+        if (step == SERVER_STEP && next != SERVER_STEP) form.clearTest()
+        step = next
+    }
+    BackHandler(enabled = step > 0) { goTo(step - 1) }
     val scope = rememberCoroutineScope()
-    val localNetworkAccess = rememberLocalNetworkAccess(actions)
+    val localNetworkAccess = rememberLocalNetworkAccess(form::isLocalNetworkBlocked, actions)
 
     val canContinue = viewModel.canContinue(step, url, token, status)
     val nextLabel = when (step) {
@@ -94,20 +100,20 @@ fun OnboardingScreen(
                 showBack = step > 0,
                 nextLabel = stringResource(nextLabel),
                 nextEnabled = canContinue,
-                onBack = { step-- },
+                onBack = { goTo(step - 1) },
                 onNext = {
                     if (step == SERVER_STEP) {
-                        viewModel.saveServer(url, token)
+                        form.save(url, token)
                         // Asks for local network access now, while it's clear why; a denial is shown later.
                         scope.launch {
                             localNetworkAccess(url.trim())
-                            step = PERMISSIONS_STEP
+                            goTo(PERMISSIONS_STEP)
                         }
                     } else if (step == STEPS - 1) {
                         viewModel.finish()
                         onFinish()
                     } else {
-                        step++
+                        goTo(step + 1)
                     }
                 },
             )
@@ -128,12 +134,13 @@ fun OnboardingScreen(
                     SERVER_STEP -> ServerStep(
                         url, { url = it }, token, { token = it }, status, actions,
                         state.testResult,
-                        onTest = { viewModel.testConnection(url, token, localNetworkAccess) },
-                        onClearTest = viewModel::clearTest,
+                        isLocalNetworkBlocked = form::isLocalNetworkBlocked,
+                        onTest = { scope.launchConnectionTest(form, { url }, { token }, localNetworkAccess) },
+                        onClearTest = form::clearTest,
                     )
                     PERMISSIONS_STEP -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
                     BATTERY_STEP -> BatteryStep(status, actions.requestBatteryExemption)
-                    else -> HistoryStep { viewModel.importHistory(it) }
+                    else -> HistoryStep { form.importHistory(it) }
                 }
             }
         }
@@ -207,15 +214,14 @@ private fun ServerStep(
     status: DeviceStatus?,
     actions: AppActions,
     testResult: TestResult?,
+    isLocalNetworkBlocked: suspend (String) -> Boolean,
     onTest: () -> Unit,
     onClearTest: () -> Unit,
 ) {
-    // The test result belongs to this visit of the step, like the composition-scoped test it replaces.
-    DisposableEffect(Unit) { onDispose(onClearTest) }
     StepTitle(stringResource(R.string.your_server))
     BodyText(stringResource(R.string.server_text))
     ServerFields(url, { onUrlChange(it); onClearTest() }, token, { onTokenChange(it); onClearTest() })
-    LocalNetworkNotice(url, status, actions)
+    LocalNetworkNotice(url, status, isLocalNetworkBlocked, actions)
     OutlinedButton(
         onClick = onTest,
         enabled = ServerUrl.isValid(url) && token.isNotBlank(),

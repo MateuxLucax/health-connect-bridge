@@ -12,7 +12,6 @@ import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewMod
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.PERMISSIONS_STEP
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.SERVER_STEP
 import io.github.mateuxlucax.healthconnectbridge.ui.onboarding.OnboardingViewModel.Companion.STEPS
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -69,7 +68,7 @@ class OnboardingViewModelTest {
 
     @Test
     fun saveServer_trimsAndStores() {
-        vm.saveServer(" http://192.168.0.10:8080 ", " t ")
+        vm.form.save(" http://192.168.0.10:8080 ", " t ")
         assertEquals("http://192.168.0.10:8080", settings.serverUrl)
         assertEquals("t", settings.token)
         assertFalse(settings.onboardingDone)
@@ -84,27 +83,48 @@ class OnboardingViewModelTest {
 
     @Test
     fun importHistory_requestsABackfill() {
-        vm.importHistory(7)
+        vm.form.importHistory(7)
         assertEquals(listOf(7), backfills)
     }
 
     @Test
     fun connectionTest_runningThenOk() = runBlocking {
-        val permissionAnswer = CompletableDeferred<Boolean>()
-        vm.testConnection(" ${server.url} ", "t") { permissionAnswer.await() }
+        // The screen shows "running" while it settles local network access, then starts the test.
+        vm.form.markTestRunning()
         val running = withTimeout(10_000) { vm.uiState.first { it.testResult != null } }
         assertNull(running.testResult?.ok)
 
-        permissionAnswer.complete(true)
+        vm.form.testConnection(" ${server.url} ", "t", localNetworkAllowed = true)
         val state = withTimeout(10_000) { vm.uiState.first { it.testResult?.ok != null } }
         assertEquals(true, state.testResult?.ok)
         assertEquals(1, server.requests.size)
     }
 
     @Test
+    fun connectionTest_keepsItsResultUntilClearedExplicitly() = runBlocking {
+        vm.form.testConnection(server.url, "t", localNetworkAllowed = true)
+        withTimeout(10_000) { vm.uiState.first { it.testResult?.ok == true } }
+
+        // A rotation recreates the screen but keeps this ViewModel: a new collector sees the same result.
+        assertEquals(true, withTimeout(10_000) { vm.uiState.first() }.testResult?.ok)
+
+        // Leaving the server step (or editing a field) clears it.
+        vm.form.clearTest()
+        assertNull(withTimeout(10_000) { vm.uiState.first { it.testResult == null } }.testResult)
+    }
+
+    @Test
+    fun localNetworkCheck_usesTheTrimmedUrl() = runBlocking {
+        var checked: String? = null
+        val vm = OnboardingViewModel(settings, ExporterClient(), {}, {}) { checked = it; true }
+        assertTrue(vm.form.isLocalNetworkBlocked(" http://192.168.0.10:8080 "))
+        assertEquals("http://192.168.0.10:8080", checked)
+    }
+
+    @Test
     fun connectionTest_rejectedToken() = runBlocking {
         server.status = { 401 }
-        vm.testConnection(server.url, "wrong") { true }
+        vm.form.testConnection(server.url, "wrong", localNetworkAllowed = true)
         val state = withTimeout(10_000) { vm.uiState.first { it.testResult?.ok != null } }
         assertEquals(false, state.testResult?.ok)
         assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), state.testResult?.error)

@@ -320,16 +320,19 @@ records from Health Connect." Any other exception still fails or retries as desc
 sequenceDiagram
     autonumber
     actor U as User
-    participant C as ConnectionTest
+    participant S as Screen (onboarding or Settings)
+    participant C as SetupForm + ConnectionTest (ViewModel)
     participant U2 as ExporterClient.check
     participant E as Exporter
 
-    U->>C: test (URL, token from the form, trimmed)
+    U->>S: Test connection
+    S->>C: mark running
     opt Android 17+, URL resolves to a local address, not granted
-        C->>U: system prompt: ACCESS_LOCAL_NETWORK
-        alt denied
-            C-->>U: LOCAL_NETWORK_PERMISSION: inline error + "Open settings"<br/>(no request is sent, so no timeout)
-        end
+        S->>U: system prompt: ACCESS_LOCAL_NETWORK
+    end
+    S->>C: test (URL, token from the form, trimmed; local network allowed?)
+    alt local network denied
+        C-->>U: LOCAL_NETWORK_PERMISSION: inline error + "Open settings"<br/>(no request is sent, so no timeout)
     end
     C->>U2: check(url, token)
     U2->>E: POST /api/v1/samples {"samples":[]}
@@ -348,7 +351,10 @@ sequenceDiagram
 ```
 
 The empty batch reaches neither Health Connect nor Prometheus, and the form
-values are not saved by the test. After a "don't ask again" denial the system
+values are not saved by the test. The screen asks for the permission and
+passes only the answer, so the ViewModel's coroutine never holds the
+activity. The result survives rotation; editing a field or leaving the
+server step or the Settings tab clears it. After a "don't ask again" denial the system
 no longer shows the prompt, so the app opens its settings page instead.
 Saving a local URL in Settings asks for the permission the same way.
 

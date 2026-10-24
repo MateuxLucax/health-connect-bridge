@@ -18,8 +18,9 @@ import kotlinx.coroutines.launch
 class TestResult(val ok: Boolean?, val error: SyncError? = null)
 
 /**
- * Runs the connection test in [scope] and holds its last result. A plain state holder shared by the
- * onboarding and settings ViewModels.
+ * Runs the connection test in [scope] and holds its last result. A plain state holder used by [SetupForm].
+ * It gets only plain data: whether the app may reach the server is settled by the screen, which can ask for
+ * the permission, so this coroutine never holds the activity.
  */
 class ConnectionTest(
     private val scope: CoroutineScope,
@@ -31,15 +32,22 @@ class ConnectionTest(
     /** The running test; cancelled when superseded, so an older answer can't overwrite a newer state. */
     private var job: Job? = null
 
+    /** Shows the test as running while the screen settles local network access; [run] or [clear] follows. */
+    fun markRunning() {
+        job?.cancel()
+        job = null
+        _result.value = TestResult(null)
+    }
+
     /**
-     * Tests [url] and [token]. [ensureLocalNetwork] makes sure the app may reach the URL (asking for the local
-     * network permission if needed) and returns false when it may not.
+     * Tests [url] and [token]. [localNetworkAllowed] is false when the server is on the local network and the
+     * app may not reach it (Android 17+); the test then fails without a request instead of timing out.
      */
-    fun run(url: String, token: String, ensureLocalNetwork: suspend (String) -> Boolean = { true }) {
+    fun run(url: String, token: String, localNetworkAllowed: Boolean = true) {
         job?.cancel()
         _result.value = TestResult(null)
         job = scope.launch {
-            val outcome = test(url.trim(), token.trim(), ensureLocalNetwork)
+            val outcome = test(url.trim(), token.trim(), localNetworkAllowed)
             // A blocking request can still end (e.g. with an IOException) after cancellation; drop its outcome.
             ensureActive()
             _result.value = outcome
@@ -52,10 +60,9 @@ class ConnectionTest(
         _result.value = null
     }
 
-    private suspend fun test(url: String, token: String, ensureLocalNetwork: suspend (String) -> Boolean): TestResult = try {
+    private suspend fun test(url: String, token: String, localNetworkAllowed: Boolean): TestResult = try {
         if (!ServerUrl.isValid(url)) throw SetupException(SyncError.Kind.INVALID_URL)
-        // Asking first avoids a connect timeout on Android 17 when the permission is missing.
-        if (!ensureLocalNetwork(url)) throw SetupException(SyncError.Kind.LOCAL_NETWORK_PERMISSION)
+        if (!localNetworkAllowed) throw SetupException(SyncError.Kind.LOCAL_NETWORK_PERMISSION)
         exporter.check(url, token)
         TestResult(true)
     } catch (e: CancellationException) {

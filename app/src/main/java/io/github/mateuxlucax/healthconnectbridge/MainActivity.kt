@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             AppTheme {
-                App(container.viewModelFactory, container.deviceStatusRepository, onboardingDone, refreshKey, actions)
+                App(container.viewModelFactory, onboardingDone, refreshKey, actions)
             }
         }
     }
