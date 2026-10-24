@@ -44,7 +44,7 @@ jobs:
       - name: Unit tests
         run: |
           set -o pipefail
-          ./gradlew testReleaseUnitTest 2>&1 | tee "$RUNNER_TEMP/test.log"
+          ./gradlew testDebugUnitTest 2>&1 | tee "$RUNNER_TEMP/test.log"
 
       # Surfaces results as annotations, readable without downloading logs.
       - name: Report test results
