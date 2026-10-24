@@ -141,4 +141,19 @@ class UploaderTest {
         val closedPort = ServerSocket(0).use { it.localPort }
         assertThrows<IOException> { upload(url = "http://127.0.0.1:$closedPort") }
     }
+
+    @Test
+    fun checkPostsAnEmptyBatchWithTheToken() {
+        runBlocking { Uploader.check(server.url, "secret-token") }
+        val request = server.requests.single()
+        assertEquals("/api/v1/samples", request.path)
+        assertEquals("Bearer secret-token", request.headers["authorization"])
+        assertEquals(0, request.json.getJSONArray("samples").length())
+    }
+
+    @Test
+    fun checkReportsRejectedToken() {
+        server.status = { 401 }
+        assertEquals(401, assertThrows<HttpStatusException> { runBlocking { Uploader.check(server.url, "bad") } }.code)
+    }
 }

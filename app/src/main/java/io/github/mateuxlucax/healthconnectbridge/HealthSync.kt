@@ -95,7 +95,9 @@ class HealthSync(
     }
 
     private suspend fun upload(samples: List<Sample>) {
-        if (samples.isNotEmpty()) Uploader.upload(settings.serverUrl, settings.token, samples)
+        if (samples.isEmpty()) return
+        Uploader.upload(settings.serverUrl, settings.token, samples)
+        LastValues(settings.prefs).record(samples)
     }
 
     private fun client(): HealthConnectClient {

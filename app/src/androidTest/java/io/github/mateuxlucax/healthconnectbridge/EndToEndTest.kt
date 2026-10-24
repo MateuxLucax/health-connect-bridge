@@ -41,6 +41,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 
 /**
  * Real Health Connect -> app sync -> exporter -> Prometheus, on an emulator. The workflow runs the
@@ -78,6 +79,9 @@ class EndToEndTest {
 
         client.insertRecords(records())
         settings.serverUrl = "http://10.0.2.2:8080"
+        settings.token = token
+        onboardingScreenshots()
+        assertTrue(settings.onboardingDone)
 
         // Wrong token: the app shows the 401 and nothing reaches Prometheus.
         settings.token = "wrong-$token"
@@ -86,7 +90,7 @@ class EndToEndTest {
         assertEquals(0L, settings.lastSuccessMs)
         assertNull(settings.changesToken)
         assertEquals(0, query("""{__name__=~"health_.+"}[30d]""").length())
-        screenshotMainScreen("main-error")
+        screenshot("home-error")
 
         // Right token: the first run reads the last 7 days.
         settings.token = token
@@ -106,17 +110,17 @@ class EndToEndTest {
         assertEquals(mapOf(labels() to listOf(weightTime to 72.5)), series("health_weight_kg"))
         assertExpectedSeries("health_weight_kg")
 
-        screenshotMainScreen("main-light")
+        screenshot("home-light")
+        screenshot("settings") { device.findObject(By.text("Configurações")).click() }
         shell("cmd uimode night yes")
         Thread.sleep(2_000)
-        screenshotMainScreen("main-dark")
+        screenshot("home-dark")
         shell("cmd uimode night no")
     }
 
     @Test
     fun launcherIconScreenshots() {
         shell("mkdir -p $SCREENSHOT_DIR")
-        val device = UiDevice.getInstance(instrumentation)
         val plain = captureLauncherIcon(device)
         save("launcher-icon", plain)
 
@@ -229,11 +233,46 @@ class EndToEndTest {
         return JSONObject(body).getJSONObject("data").getJSONArray("result")
     }
 
-    private fun screenshotMainScreen(name: String) {
+    private val device: UiDevice get() = UiDevice.getInstance(instrumentation)
+
+    /** Opens the app, runs [action], then saves a screenshot. */
+    private fun screenshot(name: String, action: () -> Unit = {}) {
         ActivityScenario.launch(MainActivity::class.java).use {
-            Thread.sleep(2_000) // status is filled in asynchronously
+            Thread.sleep(2_000) // state is loaded asynchronously
+            action()
+            Thread.sleep(1_000)
             save(name, instrumentation.uiAutomation.takeScreenshot())
         }
+    }
+
+    /** Walks through the five onboarding steps, with the server and permissions already set up. */
+    private fun onboardingScreenshots() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            Thread.sleep(2_000)
+            save("onboarding-1-welcome", instrumentation.uiAutomation.takeScreenshot())
+            click("Próximo")
+            click("Testar conexão")
+            requireNotNull(device.wait(Until.findObject(By.textContains("Conexão OK")), 15_000)) {
+                "connection test did not succeed"
+            }
+            save("onboarding-2-server", instrumentation.uiAutomation.takeScreenshot())
+            click("Próximo")
+            requireNotNull(device.wait(Until.findObject(By.textContains("permissões concedidas")), 10_000))
+            save("onboarding-3-permissions", instrumentation.uiAutomation.takeScreenshot())
+            click("Próximo")
+            Thread.sleep(1_000)
+            save("onboarding-4-battery", instrumentation.uiAutomation.takeScreenshot())
+            device.findObject(By.text(Pattern.compile("Próximo|Pular"))).click()
+            Thread.sleep(1_000)
+            save("onboarding-5-history", instrumentation.uiAutomation.takeScreenshot())
+            click("Concluir")
+            requireNotNull(device.wait(Until.findObject(By.text("Sincronizar agora")), 10_000))
+        }
+    }
+
+    private fun click(text: String) {
+        requireNotNull(device.wait(Until.findObject(By.text(text)), 10_000)) { "\"$text\" not found" }.click()
+        device.waitForIdle()
     }
 
     /** Turns on Material You themed icons through the Wallpaper & style app; false if the toggle isn't found. */

@@ -34,6 +34,10 @@ class Settings(val prefs: SharedPreferences) {
         get() = prefs.getString(KEY_LAST_ERROR, null)
         set(value) = prefs.edit().putString(KEY_LAST_ERROR, value).apply()
 
+    var onboardingDone: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
+        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
+
     private companion object {
         const val KEY_SERVER_URL = "server_url"
         const val KEY_TOKEN = "token"
@@ -41,5 +45,6 @@ class Settings(val prefs: SharedPreferences) {
         const val KEY_CHANGES_TYPES = "changes_types"
         const val KEY_LAST_SUCCESS = "last_success_ms"
         const val KEY_LAST_ERROR = "last_error"
+        const val KEY_ONBOARDING_DONE = "onboarding_done"
     }
 }

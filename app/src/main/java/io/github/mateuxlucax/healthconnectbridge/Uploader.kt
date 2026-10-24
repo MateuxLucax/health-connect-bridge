@@ -18,6 +18,11 @@ object Uploader {
         samples.chunked(MAX_SAMPLES_PER_REQUEST).forEach { post(serverUrl, token, it) }
     }
 
+    /** Sends an empty batch to check the URL and token; throws like [upload]. */
+    suspend fun check(serverUrl: String, token: String) = withContext(Dispatchers.IO) {
+        post(serverUrl, token, emptyList())
+    }
+
     private fun post(serverUrl: String, token: String, samples: List<Sample>) {
         val body = JSONObject().put("samples", JSONArray().apply {
             samples.forEach { s ->

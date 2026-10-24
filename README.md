@@ -6,9 +6,15 @@ Built for a Galaxy Watch + Samsung Health setup, but it works with any app that 
 
 ## Screenshots
 
-| Synced | Dark theme | Error |
-|---|---|---|
-| ![Main screen after a sync](docs/screenshots/main-light.png) | ![Main screen, dark theme](docs/screenshots/main-dark.png) | ![Main screen with a rejected token](docs/screenshots/main-error.png) |
+| Home | Dark theme | Error | Settings |
+|---|---|---|---|
+| ![Home after a sync](docs/screenshots/home-light.png) | ![Home, dark theme](docs/screenshots/home-dark.png) | ![Home with a rejected token](docs/screenshots/home-error.png) | ![Settings](docs/screenshots/settings.png) |
+
+First launch walks through five steps:
+
+| Welcome | Server | Permissions | Battery | History |
+|---|---|---|---|---|
+| ![Welcome](docs/screenshots/onboarding-1-welcome.png) | ![Server](docs/screenshots/onboarding-2-server.png) | ![Permissions](docs/screenshots/onboarding-3-permissions.png) | ![Battery](docs/screenshots/onboarding-4-battery.png) | ![History](docs/screenshots/onboarding-5-history.png) |
 
 Launcher icon: ![Launcher icon](docs/screenshots/launcher-icon.png)
 
@@ -32,10 +38,12 @@ Galaxy Watch -> Samsung Health -> Health Connect -> Health Connect Bridge (this 
 
 1. In Samsung Health: **Settings > Health Connect**, and allow Samsung Health to write the data types you want.
 2. Install the APK from [Releases](https://github.com/MateuxLucax/health-connect-bridge/releases) (allow installing from unknown sources).
-3. Open the app and enter the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. Tap **Salvar**.
-4. Tap **Conceder permissões do Health Connect** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
-5. Tap **Desativar otimização de bateria**. One UI kills background work otherwise.
-6. Tap **Sincronizar agora** to check that it works; the status shows the last success or the last error. Use **Importar histórico** to send older data.
+3. Open the app and follow the setup steps:
+   - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Testar conexão** sends an empty batch to check both.
+   - **Permissions**: tap **Conceder permissões** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
+   - **Battery**: tap **Desativar otimização de bateria**. One UI kills background work otherwise.
+   - **History**: optionally import older data, then tap **Concluir**.
+4. **Início** shows the last sync (or the last error), a **Sincronizar agora** button and the last value sent for each metric. **Configurações** has the server, history import, permissions and battery settings.
 
 ## Metrics
 
