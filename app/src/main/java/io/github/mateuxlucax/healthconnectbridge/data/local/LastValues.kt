@@ -1,6 +1,5 @@
 package io.github.mateuxlucax.healthconnectbridge.data.local
 
-import android.content.Context
 import android.content.SharedPreferences
 import io.github.mateuxlucax.healthconnectbridge.model.LastValue
 import io.github.mateuxlucax.healthconnectbridge.model.Sample
@@ -10,8 +9,6 @@ import org.json.JSONObject
 
 /** Newest uploaded value per metric, kept as a small JSON object in the same SharedPreferences as [SettingsStore]. */
 class LastValues(private val prefs: SharedPreferences) {
-    constructor(context: Context) : this(SettingsStore.open(context))
-
     fun record(samples: List<Sample>) {
         if (samples.isEmpty()) return
         val json = load()

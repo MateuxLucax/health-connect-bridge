@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.map
 
 /** User settings and sync checkpoint, persisted in SharedPreferences. */
 class SettingsStore(private val prefs: SharedPreferences) {
-    constructor(context: Context) : this(open(context))
-
     var serverUrl: String
         get() = prefs.getString(KEY_SERVER_URL, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_SERVER_URL, value).apply()
