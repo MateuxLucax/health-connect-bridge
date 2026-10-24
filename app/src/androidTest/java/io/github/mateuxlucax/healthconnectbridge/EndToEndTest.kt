@@ -1,5 +1,7 @@
 package io.github.mateuxlucax.healthconnectbridge
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.ParcelFileDescriptor
@@ -115,16 +117,13 @@ class EndToEndTest {
     fun launcherIconScreenshots() {
         shell("mkdir -p $SCREENSHOT_DIR")
         val device = UiDevice.getInstance(instrumentation)
-        val (plain, launcher) = captureLauncherIcon(device)
+        val plain = captureLauncherIcon(device)
         save("launcher-icon", plain)
 
-        // Launcher3's own setting for Material You themed icons (what Wallpaper & style toggles).
-        val uri = "content://$launcher.grid_control/icon_themed"
-        val out = shell("content update --uri $uri --bind boolean_value:b:true") + shell("content query --uri $uri")
-        Thread.sleep(3_000)
-        val (themed) = captureLauncherIcon(device)
-        if (themed.sameAs(plain)) org.junit.Assert.fail("DEBUG themed: $launcher $out")
-        else save("launcher-icon-themed", themed)
+        // Best effort: the launcher's own setting is guarded by BIND_WALLPAPER, so flip it in Wallpaper & style.
+        if (!enableThemedIcons(device)) return
+        val themed = captureLauncherIcon(device)
+        if (!themed.sameAs(plain)) save("launcher-icon-themed", themed)
     }
 
     private suspend fun sync() = SyncWorker.runAndReport(settings) { HealthSync(context, settings).incremental() }
@@ -237,15 +236,38 @@ class EndToEndTest {
         }
     }
 
-    /** Opens the app drawer and returns a crop of this app's icon and label, and the launcher's package. */
-    private fun captureLauncherIcon(device: UiDevice): Pair<Bitmap, String> {
+    /** Turns on Material You themed icons through the Wallpaper & style app; false if the toggle isn't found. */
+    private fun enableThemedIcons(device: UiDevice): Boolean {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_SET_WALLPAPER).setPackage("com.google.android.apps.wallpaper")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: ActivityNotFoundException) {
+            return false
+        }
+        repeat(6) {
+            val toggle = device.wait(Until.findObject(By.textContains("Themed icons")), 3_000)
+            if (toggle != null) {
+                toggle.click()
+                Thread.sleep(3_000)
+                device.pressHome()
+                return true
+            }
+            device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 20)
+        }
+        device.pressHome()
+        return false
+    }
+
+    /** Opens the app drawer and returns a crop of this app's icon and label. */
+    private fun captureLauncherIcon(device: UiDevice): Bitmap {
         device.pressHome()
         device.waitForIdle()
         device.swipe(device.displayWidth / 2, device.displayHeight * 4 / 5, device.displayWidth / 2, device.displayHeight / 5, 20)
         val icon: UiObject2 = requireNotNull(device.wait(Until.findObject(By.text("Health Connect Bridge")), 10_000)) {
             "app icon not found in the launcher's app drawer"
         }
-        val launcher = icon.applicationPackage
         Thread.sleep(1_000)
         val screen = instrumentation.uiAutomation.takeScreenshot()
         val pad = 24
@@ -254,7 +276,7 @@ class EndToEndTest {
             intersect(0, 0, screen.width, screen.height)
         }
         device.pressHome()
-        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height()) to launcher
+        return Bitmap.createBitmap(screen, r.left, r.top, r.width(), r.height())
     }
 
     /** Writes a PNG to [SCREENSHOT_DIR], which survives the app being uninstalled after the run. */

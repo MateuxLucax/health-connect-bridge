@@ -81,14 +81,9 @@ jobs:
           disk-size: 8G
           emulator-boot-timeout: 900
           script: |
-            bash -c 'L=com.google.android.apps.nexuslauncher; { adb shell content query --uri content://$L.grid_control/icon_themed; adb shell content update --uri content://$L.grid_control/icon_themed --bind boolean_value:b:true; adb shell content query --uri content://$L.grid_control/icon_themed; adb shell dumpsys package $L | grep -i -B2 -A6 grid_control; } > "$RUNNER_TEMP/probe.txt" 2>&1; true'
             bash -o pipefail -c './gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.token="$AUTH_TOKEN" 2>&1 | tee "$RUNNER_TEMP/test.log"; s=$?; adb logcat -d > "$RUNNER_TEMP/logcat.txt"; exit $s'
             mkdir -p docs
             adb pull /data/local/tmp/screenshots docs/
-
-      - name: Probe output
-        if: always()
-        run: echo "::notice title=probe::$(cat $RUNNER_TEMP/probe.txt | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
 
       - name: Report test results
         if: always()
