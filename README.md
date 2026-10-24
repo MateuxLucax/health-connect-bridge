@@ -122,6 +122,22 @@ Then add these repository secrets (**Settings > Secrets and variables > Actions*
 
 Keep `release.jks` somewhere safe and never commit it.
 
+## Documentation
+
+```mermaid
+flowchart LR
+    hc["Health Connect"] -->|"Changes API"| app["Health Connect Bridge"]
+    app -->|"POST /api/v1/samples<br/>2xx advances checkpoint"| exp["exporter"]
+    exp -->|"remote write"| prom[("Prometheus")]
+    prom --> graf["Grafana"]
+```
+
+- [Architecture](docs/architecture.md): system context, components, deployment, trust boundaries
+- [Sequences](docs/sequences.md): onboarding, sync, errors, backfill, end to end
+- [Data](docs/data.md): API contract, metric catalog, on-device state
+- [Decision records](docs/adr/README.md)
+- Server side: [exporter docs](https://github.com/MateuxLucax/health-connect-prometheus-exporter/tree/main/docs)
+
 ## License
 
 [MIT](LICENSE)
