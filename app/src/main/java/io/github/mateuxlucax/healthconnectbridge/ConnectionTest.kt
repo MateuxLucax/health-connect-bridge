@@ -8,6 +8,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** Outcome of "Test connection": [ok] is null while the request runs; [error] is set when it failed. */
@@ -18,12 +19,18 @@ class ConnectionTest(private val scope: CoroutineScope) {
     var result by mutableStateOf<TestResult?>(null)
         private set
 
+    /** The running test; cancelled when superseded, so an older answer can't overwrite a newer state. */
+    private var job: Job? = null
+
     fun run(url: String, token: String) {
+        job?.cancel()
         result = TestResult(null)
-        scope.launch { result = test(url.trim(), token.trim()) }
+        job = scope.launch { result = test(url.trim(), token.trim()) }
     }
 
     fun clear() {
+        job?.cancel()
+        job = null
         result = null
     }
 
