@@ -15,8 +15,14 @@ import kotlinx.coroutines.launch
 /** Outcome of "Test connection": [ok] is null while the request runs; [error] is set when it failed. */
 class TestResult(val ok: Boolean?, val error: SyncError? = null)
 
-/** Runs the connection test and holds its last result. */
-class ConnectionTest(private val scope: CoroutineScope) {
+/**
+ * Runs the connection test and holds its last result. [ensureLocalNetwork] makes sure the app may reach the
+ * URL (asking for the local network permission if needed) and returns false when it may not.
+ */
+class ConnectionTest(
+    private val scope: CoroutineScope,
+    private val ensureLocalNetwork: suspend (String) -> Boolean = { true },
+) {
     var result by mutableStateOf<TestResult?>(null)
         private set
 
@@ -42,6 +48,8 @@ class ConnectionTest(private val scope: CoroutineScope) {
 
     private suspend fun test(url: String, token: String): TestResult = try {
         if (!ServerUrl.isValid(url)) throw SetupException(SyncError.Kind.INVALID_URL)
+        // Asking first avoids a connect timeout on Android 17 when the permission is missing.
+        if (!ensureLocalNetwork(url)) throw SetupException(SyncError.Kind.LOCAL_NETWORK_PERMISSION)
         Uploader.check(url, token)
         TestResult(true)
     } catch (e: CancellationException) {
@@ -52,7 +60,7 @@ class ConnectionTest(private val scope: CoroutineScope) {
 }
 
 @Composable
-fun rememberConnectionTest(): ConnectionTest {
+fun rememberConnectionTest(ensureLocalNetwork: suspend (String) -> Boolean): ConnectionTest {
     val scope = rememberCoroutineScope()
-    return remember { ConnectionTest(scope) }
+    return remember { ConnectionTest(scope, ensureLocalNetwork) }
 }

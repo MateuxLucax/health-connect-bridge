@@ -54,4 +54,24 @@ class ConnectionTestTest {
         withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
         assertEquals(SyncError(SyncError.Kind.INVALID_URL), test.result?.error)
     }
+
+    @Test
+    fun deniedLocalNetworkFailsWithoutARequest() = runBlocking {
+        var checkedUrl: String? = null
+        val test = ConnectionTest(this) { checkedUrl = it; false }
+        test.run(" ${server.url} ", "t")
+        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
+        assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), test.result?.error)
+        assertEquals(server.url, checkedUrl)
+        assertEquals(0, server.requests.size)
+    }
+
+    @Test
+    fun grantedLocalNetworkConnects() = runBlocking {
+        val test = ConnectionTest(this) { true }
+        test.run(server.url, "t")
+        withTimeout(10_000) { while (test.result?.ok == null) delay(20) }
+        assertEquals(true, test.result?.ok)
+        assertEquals(1, server.requests.size)
+    }
 }

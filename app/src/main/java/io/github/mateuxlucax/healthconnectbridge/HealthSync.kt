@@ -17,9 +17,12 @@ import kotlin.reflect.KClass
 /** Reads Health Connect and uploads mapped samples to the exporter. */
 class HealthSync(
     private val settings: Settings,
+    /** Whether connecting to the server URL would be blocked by Android 17 local network protection. */
+    private val localNetworkBlocked: suspend (String) -> Boolean = { false },
     private val clientFactory: () -> HealthConnectClient,
 ) {
-    constructor(context: Context, settings: Settings) : this(settings, { defaultClient(context) })
+    constructor(context: Context, settings: Settings) :
+        this(settings, { LocalNetwork.isBlocked(context, it) }, { defaultClient(context) })
 
     /** Changes-API sync. Only advances the checkpoint after each successful upload. */
     suspend fun incremental() {
@@ -112,11 +115,13 @@ class HealthSync(
         runCatching { LastValues(settings.prefs).record(samples) }
     }
 
-    private fun client(): HealthConnectClient {
+    private suspend fun client(): HealthConnectClient {
         if (settings.serverUrl.isBlank() || settings.token.isBlank()) {
             throw SetupException(SyncError.Kind.NOT_CONFIGURED)
         }
         if (!ServerUrl.isValid(settings.serverUrl)) throw SetupException(SyncError.Kind.INVALID_URL)
+        // A worker can't ask for the permission; fail now instead of after a connect timeout.
+        if (localNetworkBlocked(settings.serverUrl)) throw SetupException(SyncError.Kind.LOCAL_NETWORK_PERMISSION)
         return clientFactory()
     }
 

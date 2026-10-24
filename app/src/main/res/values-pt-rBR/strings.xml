@@ -182,4 +182,13 @@
         <item quantity="many">%s passos</item>
         <item quantity="other">%s passos</item>
     </plurals>
+
+    <!-- Android 17 local network permission -->
+    <string name="error_local_network">Permissão de rede local necessária. Abra o app para concedê-la.</string>
+    <string name="local_network_needed">Seu servidor está na sua rede local. O Android precisa de permissão para acessá-lo.</string>
+    <string name="local_network_allow">Permitir acesso à rede local</string>
+    <string name="local_network_denied">O acesso à rede local foi negado, então o app não consegue acessar seu servidor. Permita “Dispositivos próximos” nas configurações do app.</string>
+    <string name="local_network_granted">Acesso à rede local permitido</string>
+    <string name="local_network_missing">Acesso à rede local não permitido. A sincronização com seu servidor vai falhar.</string>
+    <string name="open_app_settings">Abrir configurações</string>
 </resources>

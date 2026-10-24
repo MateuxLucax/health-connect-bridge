@@ -46,13 +46,22 @@ Galaxy Watch
 ## Phone setup
 
 1. In Samsung Health: **Settings > Health Connect**, and allow Samsung Health to write the data types you want.
-2. Install the APK from [Releases](https://github.com/MateuxLucax/health-connect-bridge/releases) (allow installing from unknown sources).
+2. Install the APK from the [latest release](https://github.com/MateuxLucax/health-connect-bridge/releases/latest) (allow installing from unknown sources). Later releases install over it as updates.
 3. Open the app and follow the setup steps:
-   - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Test connection** sends an empty batch to check both.
+   - **Server**: the server URL (for example `http://192.168.0.10:8080`; plain HTTP is allowed for LAN use) and the token. **Test connection** sends an empty batch to check both. On Android 17 and later, if the server is on your local network (its name resolves to an address like `192.168.x.x`, or ends in `.local`), Android asks to let the app find and connect to devices on your local network (**Nearby devices**): allow it, or the app can't reach the server.
    - **Permissions**: tap **Grant permissions** and allow all data types, plus **access data in the background** and **access past data** (needed to backfill more than 30 days).
    - **Battery**: tap **Turn off battery optimization**. One UI kills background work otherwise.
    - **History**: optionally import older data, then tap **Finish**.
 4. **Home** shows the last sync (or the last error), a **Sync now** button and the last value sent for each metric. **Settings** has the server, history import, permissions and battery settings.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| **Test connection** or sync fails with `failed to connect to <host>/192.168.x.x (port …) after 15000ms`, while the phone's browser opens the server fine | Android 17 blocks apps from the local network until you allow it. Tap **Test connection** again and allow access, or open **Settings > Apps > Health Connect Bridge > Permissions > Nearby devices** and allow it. The app asks by itself from version 0.3. |
+| Home says **Local network permission needed** | The background sync can't ask for it. Tap **Allow local network access** on Home. |
+| **Server rejected the token (401)** | The token in the app doesn't match the exporter's `AUTH_TOKEN`. |
+| **Server redirected the request** | Usually `http://` where the proxy redirects to `https://`. Use the `https://` URL. |
 
 ## Metrics
 

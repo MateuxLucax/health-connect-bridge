@@ -12,6 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.ServerSocket
+import java.net.SocketTimeoutException
 
 /** Outcome mapping of a sync run to WorkManager results, using the real uploader against a local server. */
 class SyncWorkerTest {
@@ -166,5 +167,79 @@ class SyncWorkerTest {
         assertEquals(SyncError(SyncError.Kind.SERVER, "HTTP 502"), settings.lastError)
         settings.prefs.edit().putString("last_error", "Texto livre de uma versão antiga").apply()
         assertNull(settings.lastError)
+    }
+
+    @Test
+    fun blockedLocalNetwork_failsFastWithoutConnecting() {
+        settings.serverUrl = server.url
+        settings.token = "t"
+        val client = FakeHealthConnectClient(granted = setOf(HealthPermission.getReadPermission(StepsRecord::class)))
+        var checkedUrl: String? = null
+        val sync = HealthSync(settings, localNetworkBlocked = { checkedUrl = it; true }) { client }
+
+        val result = runBlocking { SyncWorker.runSync(settings, sync, 0) }
+
+        assertTrue(result is ListenableWorker.Result.Failure) // not retried: only the user can fix it
+        assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), settings.lastError)
+        assertEquals(server.url, checkedUrl)
+        assertTrue(client.calls.isEmpty())
+        assertTrue(server.requests.isEmpty())
+        assertEquals(
+            "Local network permission needed. Open the app to grant it.",
+            settings.lastError!!.message(XmlStrings.of(XmlStrings.ENGLISH)),
+        )
+        assertEquals(
+            "Permissão de rede local necessária. Abra o app para concedê-la.",
+            settings.lastError!!.message(XmlStrings.of(XmlStrings.PORTUGUESE)),
+        )
+    }
+
+    @Test
+    fun blockedLocalNetwork_failsBackfillToo() {
+        settings.serverUrl = server.url
+        settings.token = "t"
+        val client = FakeHealthConnectClient(granted = setOf(HealthPermission.getReadPermission(StepsRecord::class)))
+        val result = runBlocking { SyncWorker.runSync(settings, HealthSync(settings, { true }) { client }, 5) }
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(SyncError.Kind.LOCAL_NETWORK_PERMISSION, settings.lastBackfill!!.error?.kind)
+    }
+
+    @Test
+    fun connectTimeout_isLocalNetworkPermission_whenBlocked() {
+        val result = runBlocking {
+            SyncWorker.runAndReport(settings, localNetworkBlocked = { true }) { throw SocketTimeoutException("connect timed out") }
+        }
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(SyncError(SyncError.Kind.LOCAL_NETWORK_PERMISSION), settings.lastError)
+    }
+
+    @Test
+    fun connectRefused_isLocalNetworkPermission_whenBlocked() {
+        val closedPort = ServerSocket(0).use { it.localPort }
+        val result = runBlocking {
+            SyncWorker.runAndReport(settings, localNetworkBlocked = { true }) {
+                Uploader.upload("http://127.0.0.1:$closedPort", "t", listOf(Sample("m", mapOf("source" to "a"), 1, 1L)))
+            }
+        }
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(SyncError.Kind.LOCAL_NETWORK_PERMISSION, settings.lastError?.kind)
+    }
+
+    @Test
+    fun connectTimeout_staysNetworkError_whenNotBlocked() {
+        val result = runBlocking {
+            SyncWorker.runAndReport(settings, localNetworkBlocked = { false }) { throw SocketTimeoutException("connect timed out") }
+        }
+        assertTrue(result is ListenableWorker.Result.Retry)
+        assertEquals(SyncError.Kind.NETWORK, settings.lastError?.kind)
+    }
+
+    @Test
+    fun otherErrors_dontCheckTheLocalNetwork() {
+        var checked = false
+        server.status = { 401 }
+        runBlocking { SyncWorker.runAndReport(settings, localNetworkBlocked = { checked = true; true }, sync = uploadOne) }
+        assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError)
+        assertFalse(checked)
     }
 }

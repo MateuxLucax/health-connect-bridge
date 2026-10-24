@@ -14,9 +14,8 @@ object ServerUrl {
 
     /** True for plain http to a host that isn't on the local network, where the token travels unencrypted. */
     fun isCleartextToPublicHost(url: String): Boolean {
-        val uri = parse(url) ?: return false
-        if (uri.scheme?.lowercase() != "http") return false
-        val host = uri.host?.lowercase()?.removeSurrounding("[", "]") ?: return false
+        if (parse(url)?.scheme?.lowercase() != "http") return false
+        val host = host(url) ?: return false
         return !isLocal(host)
     }
 
@@ -26,16 +25,28 @@ object ServerUrl {
         null
     }
 
+    /** Lowercase host of [url] without IPv6 brackets, or null when it has none. */
+    fun host(url: String): String? = parse(url)?.host?.lowercase()?.removeSurrounding("[", "]")?.ifEmpty { null }
+
     private fun isLocal(host: String): Boolean {
         if (host == "localhost" || LOCAL_SUFFIXES.any { host.endsWith(it) }) return true
         // Only IP literals are checked: resolving a name here would mean a DNS lookup on the UI thread.
         val isIpLiteral = host.matches(IPV4) || ':' in host
         if (!isIpLiteral) return false
-        val bytes = try {
-            InetAddress.getByName(host).address
+        val address = try {
+            InetAddress.getByName(host)
         } catch (e: Exception) {
             return false
-        }.map { it.toInt() and 0xFF }
+        }
+        return isPrivate(address)
+    }
+
+    /**
+     * Private, loopback, link-local or unique local address: 10/8, 172.16/12, 192.168/16, 127/8, 169.254/16,
+     * ::1, fc00::/7 and fe80::/10.
+     */
+    fun isPrivate(address: InetAddress): Boolean {
+        val bytes = address.address.map { it.toInt() and 0xFF }
         return if (bytes.size == 4) {
             val (a, b) = bytes
             a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)

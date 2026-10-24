@@ -2,7 +2,9 @@ package io.github.mateuxlucax.healthconnectbridge
 
 import androidx.annotation.StringRes
 import java.io.IOException
+import java.net.ConnectException
 import java.net.MalformedURLException
+import java.net.SocketTimeoutException
 
 /** Why a sync (or connection test) failed: a stable [kind] plus technical [detail], translated only when shown. */
 data class SyncError(val kind: Kind, val detail: String? = null) {
@@ -18,6 +20,8 @@ data class SyncError(val kind: Kind, val detail: String? = null) {
         NO_PERMISSIONS(R.string.error_no_permissions, false),
         HEALTH_CONNECT_UNAVAILABLE(R.string.error_health_connect_unavailable, false),
         PERMISSION_DENIED(R.string.error_permission_denied, false),
+        /** Android 17+ blocks the local server until the user grants the local network permission. */
+        LOCAL_NETWORK_PERMISSION(R.string.error_local_network, false),
         NETWORK(R.string.error_network, true),
         OTHER(R.string.error_other, true),
     }
@@ -40,6 +44,16 @@ data class SyncError(val kind: Kind, val detail: String? = null) {
             is IOException -> SyncError(Kind.NETWORK, e.message)
             // Health Connect throws IllegalStateException when rate limited, among others.
             else -> SyncError(Kind.OTHER, "${e.javaClass.simpleName}: ${e.message}")
+        }
+
+        /**
+         * Like [of], but a connect timeout or refusal is reported as [Kind.LOCAL_NETWORK_PERMISSION] when
+         * [localNetworkBlocked] says so: that is how Android 17 fails connections it blocks.
+         */
+        suspend fun of(e: Exception, localNetworkBlocked: suspend () -> Boolean): SyncError {
+            val error = of(e)
+            val connectFailure = e is SocketTimeoutException || e is ConnectException
+            return if (connectFailure && localNetworkBlocked()) SyncError(Kind.LOCAL_NETWORK_PERMISSION) else error
         }
     }
 }

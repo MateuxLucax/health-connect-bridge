@@ -30,7 +30,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph ui["UI (Jetpack Compose, Material 3)"]
-        main["MainActivity<br/>permission + battery intents"]
+        main["MainActivity<br/>permission requests + battery intent"]
         appc["App<br/>onboarding or Home/Settings tabs"]
         onb["OnboardingScreen<br/>5 steps"]
         home["HomeScreen<br/>last sync, last error, last values"]
@@ -76,13 +76,15 @@ flowchart TB
 
 | File | Responsibility |
 |------|----------------|
-| `MainActivity.kt` | Entry point; schedules the periodic job when onboarding is done; launches the Health Connect permission request and the battery-optimization exemption; refreshes screens on resume and on preference changes |
+| `MainActivity.kt` | Entry point; schedules the periodic job when onboarding is done; launches the Health Connect permission request, the local network permission request (Android 17+) and the battery-optimization exemption; refreshes screens on resume and on preference changes |
 | `App.kt` | Shows onboarding until it is finished, then the Home and Settings tabs |
 | `OnboardingScreen.kt` | Welcome, server (URL, token, connection test), permissions, battery, history import |
 | `HomeScreen.kt` | Last success or last error, "sync now", last value per metric |
 | `SettingsScreen.kt` | Server settings and connection test, history import, permission and battery state |
 | `ConnectionTest.kt` | Sends an empty batch and reports the outcome |
-| `DeviceStatus.kt` | Health Connect availability, granted vs. requested permissions, battery exemption |
+| `DeviceStatus.kt` | Health Connect availability, granted vs. requested permissions, battery exemption, local network access when the server is local |
+| `LocalNetwork.kt` | Whether the server URL is on the local network (resolves the host) and whether local network access is granted (Android 17+) |
+| `ServerUrl.kt` | URL validation, cleartext warning, private address ranges |
 | `SyncWorker.kt` | WorkManager worker: periodic, sync-now and backfill jobs; records the outcome and returns success, failure or retry |
 | `SyncError.kt` | Error kinds (with a `retry` flag) mapped from exceptions; shared by sync and connection test |
 | `HealthSync.kt` | Changes API sync, initial reads, backfill, readable types and requested permissions |
@@ -98,7 +100,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph gh["GitHub"]
-        rel["Releases<br/>signed APK per v* tag"]
+        rel["Releases<br/>signed APK per green push to main"]
     end
     subgraph phone["Android phone (minSdk 26)"]
         sh["Samsung Health"] --> hc["Health Connect"]
@@ -115,9 +117,11 @@ flowchart LR
     graf["Grafana"] --> prom
 ```
 
-- The APK is built by the Build workflow on every push to `main` (workflow
-  artifact) and attached to a GitHub Release for `v*` tags. There is no Play
-  Store listing.
+- The Build workflow builds the signed APK, runs the unit tests and the
+  emulator end-to-end test on every push to `main`; when all pass, the same
+  run publishes it as GitHub Release `v<VERSION>.<run number>` (see
+  [ADR 0012](adr/0012-automatic-releases.md)). Manually pushed `v*` tags are
+  released the same way. There is no Play Store listing.
 - The server side (exporter image, compose file, Prometheus config) is in the
   exporter repo.
 
@@ -129,6 +133,8 @@ flowchart LR
         hc["Health Connect<br/>per-type read permissions"]
         app["bridge app<br/>URL + token in app-private SharedPreferences"]
         hc -->|"read only, user-granted types"| app
+        lnp["Android 17 local network protection<br/>ACCESS_LOCAL_NETWORK"]
+        app --> lnp
     end
     subgraph net["Network"]
         wire["HTTP (cleartext allowed) or HTTPS<br/>Bearer token + health data"]
@@ -137,7 +143,7 @@ flowchart LR
         exp["exporter<br/>checks the Bearer token"]
         prom["Prometheus<br/>no authentication"]
     end
-    app --> wire --> exp --> prom
+    lnp --> wire --> exp --> prom
 ```
 
 | Boundary | Control |
@@ -145,5 +151,6 @@ flowchart LR
 | Health Connect to app | The user grants read permission per record type, plus background and history access. The app requests no write permissions in release builds (the debug manifest adds a few write permissions for the emulator test only). |
 | App storage | Server URL, token and sync state are in app-private SharedPreferences (`MODE_PRIVATE`). |
 | App to exporter | Every request carries `Authorization: Bearer <token>`; the exporter checks it before reading the body and answers `401` otherwise. |
+| App to local network | On Android 17+ (the app targets SDK 37) connections to local addresses need the runtime permission `ACCESS_LOCAL_NETWORK` (Nearby devices group); without it they time out. The app declares it and asks only when the server resolves to a local address. The background sync can't ask: it fails with `LOCAL_NETWORK_PERMISSION` instead. See [ADR 0011](adr/0011-local-network-permission.md). |
 | Transport | `usesCleartextTraffic="true"` allows plain HTTP for LAN use. Outside a trusted LAN, the exporter must be behind an HTTPS reverse proxy; the app then uses an `https://` URL. |
 | Data destination | Data goes only to the configured server. No analytics or third-party SDKs. |

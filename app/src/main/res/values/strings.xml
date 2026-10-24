@@ -178,4 +178,13 @@
         <item quantity="one">%s step</item>
         <item quantity="other">%s steps</item>
     </plurals>
+
+    <!-- Android 17 local network permission -->
+    <string name="error_local_network">Local network permission needed. Open the app to grant it.</string>
+    <string name="local_network_needed">Your server is on your local network. Android needs permission to reach it.</string>
+    <string name="local_network_allow">Allow local network access</string>
+    <string name="local_network_denied">Local network access was denied, so the app can’t reach your server. Allow “Nearby devices” in the app’s settings.</string>
+    <string name="local_network_granted">Local network access allowed</string>
+    <string name="local_network_missing">Local network access not allowed. Syncing to your server will fail.</string>
+    <string name="open_app_settings">Open settings</string>
 </resources>

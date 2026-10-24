@@ -2,9 +2,11 @@ package io.github.mateuxlucax.healthconnectbridge
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
@@ -82,6 +84,13 @@ class EndToEndTest {
         client.insertRecords(records())
         settings.serverUrl = "http://10.0.2.2:8080"
         settings.token = token
+        // The host is on the local network. The emulator runs API 36, where access is implicitly granted, so the
+        // app never asks for ACCESS_LOCAL_NETWORK here; it must still declare it for Android 17.
+        assertTrue(LocalNetwork.isLocal(settings.serverUrl))
+        if (Build.VERSION.SDK_INT < LocalNetwork.FIRST_SDK) assertTrue(LocalNetwork.isGranted(context))
+        @Suppress("DEPRECATION")
+        val declared = context.packageManager.getPackageInfo(source, PackageManager.GET_PERMISSIONS).requestedPermissions
+        assertTrue(declared.orEmpty().contains(LocalNetwork.PERMISSION))
         for (language in LANGUAGES) {
             settings.prefs.edit().putBoolean("onboarding_done", false).commit()
             onboardingScreenshots(language)

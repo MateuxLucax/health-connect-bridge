@@ -103,7 +103,7 @@ private fun MainScreen(
     ) { padding ->
         val modifier = Modifier.padding(padding).consumeWindowInsets(padding).imePadding()
         if (tab == 0) {
-            HomeScreen(settings, status, refreshKey, syncKey, onSyncNow = {
+            HomeScreen(settings, status, refreshKey, syncKey, actions, onSyncNow = {
                 SyncWorker.syncNow(context)
                 Toast.makeText(context, R.string.sync_scheduled, Toast.LENGTH_SHORT).show()
             }, modifier)

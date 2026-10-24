@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 private const val STEPS = 5
 
@@ -56,6 +58,8 @@ fun OnboardingScreen(
     var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
     var token by rememberSaveable { mutableStateOf(settings.token) }
     BackHandler(enabled = step > 0) { step-- }
+    val scope = rememberCoroutineScope()
+    val localNetworkAccess = rememberLocalNetworkAccess(actions)
 
     val canContinue = when (step) {
         1 -> ServerUrl.isValid(url) && token.isNotBlank()
@@ -79,8 +83,16 @@ fun OnboardingScreen(
                     if (step == 1) {
                         settings.serverUrl = url.trim()
                         settings.token = token.trim()
+                        // Asks for local network access now, while it's clear why; a denial is shown later.
+                        scope.launch {
+                            localNetworkAccess(url.trim())
+                            step = 2
+                        }
+                    } else if (step == STEPS - 1) {
+                        onFinish()
+                    } else {
+                        step++
                     }
-                    if (step == STEPS - 1) onFinish() else step++
                 },
             )
         },
@@ -97,7 +109,7 @@ fun OnboardingScreen(
                 Header(step)
                 when (step) {
                     0 -> WelcomeStep()
-                    1 -> ServerStep(url, { url = it }, token, { token = it })
+                    1 -> ServerStep(url, { url = it }, token, { token = it }, status, actions, localNetworkAccess)
                     2 -> PermissionsStep(status, statusFailed, actions.requestHealthPermissions)
                     3 -> BatteryStep(status, actions.requestBatteryExemption)
                     else -> HistoryStep { SyncWorker.backfill(context, it) }
@@ -166,17 +178,26 @@ private fun WelcomeStep() {
 }
 
 @Composable
-private fun ServerStep(url: String, onUrlChange: (String) -> Unit, token: String, onTokenChange: (String) -> Unit) {
-    val test = rememberConnectionTest()
+private fun ServerStep(
+    url: String,
+    onUrlChange: (String) -> Unit,
+    token: String,
+    onTokenChange: (String) -> Unit,
+    status: DeviceStatus?,
+    actions: AppActions,
+    localNetworkAccess: suspend (String) -> Boolean,
+) {
+    val test = rememberConnectionTest(localNetworkAccess)
     StepTitle(stringResource(R.string.your_server))
     BodyText(stringResource(R.string.server_text))
     ServerFields(url, { onUrlChange(it); test.clear() }, token, { onTokenChange(it); test.clear() })
+    LocalNetworkNotice(url, status, actions)
     OutlinedButton(
         onClick = { test.run(url, token) },
         enabled = ServerUrl.isValid(url) && token.isNotBlank(),
         modifier = Modifier.fillMaxWidth(),
     ) { Text(stringResource(R.string.test_connection)) }
-    TestResultLine(test.result)
+    TestResultLine(test.result, actions.openAppSettings)
 }
 
 @Composable

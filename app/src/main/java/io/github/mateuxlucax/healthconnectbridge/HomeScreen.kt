@@ -17,6 +17,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.ZoneId
 
 @Composable
@@ -40,6 +43,7 @@ fun HomeScreen(
     status: DeviceStatus?,
     refreshKey: Int,
     syncKey: Int,
+    actions: AppActions,
     onSyncNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -60,7 +64,7 @@ fun HomeScreen(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        SyncCard(lastSuccess, lastError, status?.backgroundMissing == true, now, zone, format, onSyncNow)
+        SyncCard(lastSuccess, lastError, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow)
         ExportedValues(values, now, zone, format)
     }
 }
@@ -73,8 +77,10 @@ private fun SyncCard(
     now: Long,
     zone: ZoneId,
     format: Format,
+    actions: AppActions,
     onSyncNow: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column {
@@ -103,6 +109,12 @@ private fun SyncCard(
                 else -> StatusLine(null, stringResource(R.string.status_auto))
             }
             if (backgroundMissing) BackgroundWarning()
+            if (lastError?.kind == SyncError.Kind.LOCAL_NETWORK_PERMISSION) {
+                OutlinedButton(
+                    onClick = { scope.launch { if (actions.requestLocalNetwork()) onSyncNow() } },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.local_network_allow)) }
+            }
             Button(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
                 Icon(painterResource(R.drawable.ic_sync), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))

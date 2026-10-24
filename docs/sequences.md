@@ -31,6 +31,9 @@ sequenceDiagram
         O->>O: ConnectionTest (see below)
     end
     O->>SP: save server_url, token (on Next)
+    opt Android 17+, server resolves to a local address, not granted
+        O->>U: system prompt: ACCESS_LOCAL_NETWORK (Nearby devices)
+    end
     U->>O: step 3 Permissions
     O->>HC: request read permissions for supported types,<br/>plus background and history if available
     HC-->>O: granted set
@@ -191,12 +194,16 @@ sequenceDiagram
         S--xE: connect/read failure
         W->>SP: last_error = NETWORK + detail
         W-->>WM: retry (backoff)
+    else Android 17+, local server, no local network permission
+        Note over S: checked before connecting; a connect timeout or<br/>refusal while blocked is mapped the same way
+        W->>SP: last_error = LOCAL_NETWORK_PERMISSION
+        W-->>WM: failure (the worker can't ask; Home offers "Allow local network access")
     end
     Note over S,SP: on every failure the changes token stays at the last 2xx
 ```
 
 Other outcomes: missing URL or token, Health Connect unavailable, no read
-permission (`SetupException`), a malformed URL and `SecurityException` end
+permission, missing local network permission (`SetupException`), a malformed URL and `SecurityException` end
 with `failure`; any other exception (for example Health Connect rate
 limiting) ends with `retry`. A `failure` ends that run only; the periodic job runs again at its
 next interval.
@@ -246,6 +253,12 @@ sequenceDiagram
     participant E as Exporter
 
     U->>C: test (URL, token from the form, trimmed)
+    opt Android 17+, URL resolves to a local address, not granted
+        C->>U: system prompt: ACCESS_LOCAL_NETWORK
+        alt denied
+            C-->>U: LOCAL_NETWORK_PERMISSION: inline error + "Open settings"<br/>(no request is sent, so no timeout)
+        end
+    end
     C->>U2: check(url, token)
     U2->>E: POST /api/v1/samples {"samples":[]}
     alt 204
@@ -263,7 +276,9 @@ sequenceDiagram
 ```
 
 The empty batch reaches neither Health Connect nor Prometheus, and the form
-values are not saved by the test.
+values are not saved by the test. After a "don't ask again" denial the system
+no longer shows the prompt, so the app opens its settings page instead.
+Saving a local URL in Settings asks for the permission the same way.
 
 ## End to end: app, exporter, Prometheus
 

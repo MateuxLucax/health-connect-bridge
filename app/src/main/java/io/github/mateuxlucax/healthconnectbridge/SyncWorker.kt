@@ -22,7 +22,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     override suspend fun doWork(): Result = mutex.withLock {
         val settings = Settings(applicationContext)
-        runSync(settings, HealthSync(applicationContext, settings), inputData.getInt(KEY_BACKFILL_DAYS, 0))
+        runSync(settings, HealthSync(applicationContext, settings), inputData.getInt(KEY_BACKFILL_DAYS, 0)) {
+            LocalNetwork.isBlocked(applicationContext, settings.serverUrl)
+        }
     }
 
     companion object {
@@ -30,20 +32,29 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         private val mutex = Mutex()
 
         /** A backfill of [backfillDays] when positive, the incremental sync otherwise. */
-        internal suspend fun runSync(settings: Settings, sync: HealthSync, backfillDays: Int): ListenableWorker.Result =
+        internal suspend fun runSync(
+            settings: Settings,
+            sync: HealthSync,
+            backfillDays: Int,
+            localNetworkBlocked: suspend () -> Boolean = { false },
+        ): ListenableWorker.Result =
             if (backfillDays > 0) {
-                runAndReport(settings, backfill = true) { sync.backfill(backfillDays) }
+                runAndReport(settings, backfill = true, localNetworkBlocked = localNetworkBlocked) {
+                    sync.backfill(backfillDays)
+                }
             } else {
-                runAndReport(settings) { sync.incremental() }
+                runAndReport(settings, localNetworkBlocked = localNetworkBlocked) { sync.incremental() }
             }
 
         /**
          * Runs [sync], records the outcome in [settings] and maps it to a WorkManager result. Only incremental
          * runs set the last success and error shown on Home; a backfill is reported as [Settings.lastBackfill].
+         * [localNetworkBlocked] turns a connect failure into [SyncError.Kind.LOCAL_NETWORK_PERMISSION].
          */
         internal suspend fun runAndReport(
             settings: Settings,
             backfill: Boolean = false,
+            localNetworkBlocked: suspend () -> Boolean = { false },
             sync: suspend () -> Unit,
         ): ListenableWorker.Result {
             val error = try {
@@ -52,7 +63,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                SyncError.of(e)
+                SyncError.of(e, localNetworkBlocked)
             }
             val now = System.currentTimeMillis()
             if (backfill) {

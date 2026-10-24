@@ -156,10 +156,16 @@ database. WorkManager keeps its own job queue.
 | `changes_token` | String | `HealthSync` | Health Connect changes token: the sync checkpoint. Saved after the initial read and after each successfully uploaded page of changes. |
 | `changes_types` | String | `HealthSync` (with `changes_token`) | Comma-separated, sorted simple class names of the record types the token covers, e.g. `HeartRateRecord,StepsRecord`. If the readable types change, the token is discarded and an initial read starts. |
 | `last_success_ms` | Long | `SyncWorker` | Epoch ms of the last successful sync or backfill; `0` = never. |
-| `last_error` | String? | `SyncWorker` | `SyncError.Kind` name of the last failed run (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`); cleared on success. Translated only when shown. Unknown values are ignored. |
+| `last_error` | String? | `SyncWorker` | `SyncError.Kind` name of the last failed run (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
 | `last_error_detail` | String? | `SyncWorker` | Technical detail for that error (HTTP status and body, exception message), or none. |
 | `last_values` | String (JSON) | `HealthSync` after each upload | Newest uploaded value per metric, for the Home screen. |
 | `onboarding_done` | Boolean | Onboarding (finish) | Shows the main screen and schedules the periodic job. |
+
+`SyncError.Kind` values: retried later: `SERVER`, `NETWORK`, `OTHER`; the user
+must act: `UNAUTHORIZED`, `REJECTED`, `REDIRECTED`, `NOT_CONFIGURED`,
+`INVALID_URL`, `NO_PERMISSIONS`, `HEALTH_CONNECT_UNAVAILABLE`,
+`PERMISSION_DENIED`, `LOCAL_NETWORK_PERMISSION` (Android 17+: the server is on
+the local network and the app may not reach it; Home offers to grant it).
 
 `last_values` format: one entry per metric, or per metric and sleep stage or
 exercise type (`metric:label`). An entry is replaced only by a sample with an

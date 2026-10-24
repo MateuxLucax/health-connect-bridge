@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -38,7 +40,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     var url by rememberSaveable { mutableStateOf(settings.serverUrl) }
     var token by rememberSaveable { mutableStateOf(settings.token) }
-    val test = rememberConnectionTest()
+    val scope = rememberCoroutineScope()
+    val localNetworkAccess = rememberLocalNetworkAccess(actions)
+    val test = rememberConnectionTest(localNetworkAccess)
     val filled = ServerUrl.isValid(url) && token.isNotBlank()
 
     Column(
@@ -47,6 +51,7 @@ fun SettingsScreen(
     ) {
         SectionCard(stringResource(R.string.section_server)) {
             ServerFields(url, { url = it; test.clear() }, token, { token = it; test.clear() })
+            LocalNetworkNotice(url, status, actions)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = { test.run(url, token) }, enabled = filled, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.test_connection))
@@ -56,12 +61,14 @@ fun SettingsScreen(
                         settings.serverUrl = url.trim()
                         settings.token = token.trim()
                         Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
+                        // Saved either way; a denial stays visible in the notice above and on Home.
+                        scope.launch { localNetworkAccess(url.trim()) }
                     },
                     enabled = filled,
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.save)) }
             }
-            TestResultLine(test.result)
+            TestResultLine(test.result, actions.openAppSettings)
         }
 
         SectionCard(stringResource(R.string.section_history)) {
@@ -73,6 +80,7 @@ fun SettingsScreen(
         SectionCard(stringResource(R.string.section_permissions)) {
             PermissionState(status, statusFailed, actions.requestHealthPermissions)
             BatteryState(status, actions.requestBatteryExemption)
+            LocalNetworkState(status, actions)
         }
 
         Text(
