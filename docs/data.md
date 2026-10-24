@@ -159,9 +159,11 @@ database. WorkManager keeps its own job queue.
 | `last_success_ms` | Long | `SyncRunner` | Epoch ms of the last successful incremental sync (backfills don't set it); `0` = never. |
 | `last_error` | String? | `SyncRunner` | `SyncError.Kind` name of the last failed incremental sync (e.g. `UNAUTHORIZED`, `SERVER`, `NETWORK`, `LOCAL_NETWORK_PERMISSION`); cleared on success. Translated only when shown. Unknown values are ignored. |
 | `last_error_detail` | String? | `SyncRunner` | Technical detail for that error (HTTP status and body, exception message), or none. |
+| `last_skipped` | Int | `SyncRunner` after a successful incremental sync | Stretches of records Health Connect couldn't read that the sync skipped; shown on Home when above `0`. |
 | `backfill_finished_ms` | Long | `SyncRunner` after a backfill | Epoch ms when the last history import ended, successfully or not; `0` = none yet. Shown in Settings. |
 | `backfill_error` | String? | `SyncRunner` after a backfill | `SyncError.Kind` name if the last history import failed; cleared when one succeeds. |
 | `backfill_error_detail` | String? | `SyncRunner` after a backfill | Technical detail for that error, or none. |
+| `backfill_skipped` | Int | `SyncRunner` after a backfill | Unreadable stretches of records the last history import skipped. |
 | `last_values` | String (JSON) | `HealthSync` after each upload | Newest uploaded value per metric, for the Home screen. |
 | `onboarding_done` | Boolean | Onboarding (finish) | Shows the main screen and schedules the periodic job. |
 
@@ -193,9 +195,11 @@ erDiagram
         long last_success_ms
         string last_error
         string last_error_detail
+        int last_skipped
         long backfill_finished_ms
         string backfill_error
         string backfill_error_detail
+        int backfill_skipped
         boolean onboarding_done
     }
     CHANGES_CHECKPOINT {
