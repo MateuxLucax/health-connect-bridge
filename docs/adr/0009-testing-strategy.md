@@ -15,7 +15,7 @@ what ends up in Prometheus. Health Connect only exists on a device.
   (`Fakes.kt`). They cover `HealthSync`, `Metrics`, `Uploader`,
   `SyncWorker` result mapping, `LastValues` and formatting. They run in the
   Build workflow.
-- The Integration workflow runs `EndToEndTest` on an Android emulator (API
+- The `integration` job of the Build workflow runs `EndToEndTest` on an Android emulator (API
   36): it inserts records into the real Health Connect, runs the app's sync
   against the real exporter (built from its repo) and a real Prometheus 3.5
   with the exporter's `prometheus.yml`, and checks every series in Prometheus

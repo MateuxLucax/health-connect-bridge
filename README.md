@@ -106,15 +106,22 @@ At most 5,000 samples per request.
 
 ## Building
 
-GitHub Actions builds a release APK on every push to `main` (downloadable as a workflow artifact). Pushing a tag like `v1.0.0` also publishes `health-connect-bridge-1.0.0.apk` to a GitHub Release. The version name comes from the tag and the version code from the run number.
-
-The **Integration** workflow runs an end-to-end test on an Android emulator: it inserts records into the real Health Connect, runs the app's sync against [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter) and a real Prometheus, and checks every sample in Prometheus against the [Metrics](#metrics) table (including late records through the Changes API and a rejected token). It also takes the screenshots above.
+The **Build** workflow runs on every push to `main`: it runs the unit tests and builds the signed release APK, and in parallel runs an end-to-end test on an Android emulator. The end-to-end test inserts records into the real Health Connect, runs the app's sync against [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter) and a real Prometheus, and checks every sample in Prometheus against the [Metrics](#metrics) table (including late records through the Changes API and a rejected token). It also takes the screenshots above. The emulator runs Android 16 (API 36; the API 37 image is unstable on the runner), so the end-to-end test covers the implicit local network grant; the Android 17 permission flow is covered by unit tests.
 
 Locally: `./gradlew assembleRelease` (JDK 17 and the Android SDK are required).
 
+### Releases
+
+Every push to `main` that passes the whole Build workflow is released automatically (see [ADR 0012](docs/adr/0012-automatic-releases.md)):
+
+- The version is `<VERSION>.<run number>`: the [`VERSION`](VERSION) file holds major and minor (currently `0.3`), the patch is the workflow run number, for example `v0.3.52`. The APK's version name is the same and its version code is the run number, so every release installs over the previous one.
+- The same run creates the GitHub Release `vX.Y.Z` with generated notes, `health-connect-bridge-X.Y.Z.apk` and the APK signer's SHA-256.
+- Pushes that only change `docs/**` or Markdown files don't run the workflow, so they don't release.
+- To change major or minor, edit `VERSION`. Pushing a `v*` tag by hand still builds and releases that tag.
+
 ### Release signing
 
-Tagged releases require the four signing secrets below: the Build workflow fails on a `v*` tag without them. Builds of `main` and manual runs without secrets fall back to a throwaway debug key, which changes between builds, so you would have to uninstall before each update. Every build prints the APK's signer certificate SHA-256 in the job summary, and releases append it to the release notes, so you can check it with `apksigner verify --print-certs` before installing.
+Releases require the four signing secrets below: the Build workflow fails on `main` and on `v*` tags without them. Manual runs on other branches without secrets fall back to a throwaway debug key, which changes between builds, so you would have to uninstall before each update. Every build prints the APK's signer certificate SHA-256 in the job summary, and releases append it to the release notes, so you can check it with `apksigner verify --print-certs` before installing.
 
 Create a keystore once:
 

@@ -17,3 +17,4 @@ Consequences). The server's decisions are in the
 | [0009](0009-testing-strategy.md) | Testing strategy: JVM tests with fakes plus a real end-to-end test | Accepted |
 | [0010](0010-map-records-on-the-phone.md) | Map records to metrics on the phone, without aggregation | Accepted |
 | [0011](0011-local-network-permission.md) | Ask for the local network permission when the server is local | Accepted |
+| [0012](0012-automatic-releases.md) | Release automatically on every green push to main | Accepted |

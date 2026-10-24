@@ -1,6 +1,6 @@
 # 8. Sideloaded APK distributed through GitHub Releases
 
-Status: Accepted
+Status: Accepted (release trigger superseded by [0012](0012-automatic-releases.md))
 
 ## Context
 
