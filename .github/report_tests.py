@@ -41,3 +41,4 @@ if total == 0 and os.path.exists(log_path):
         if "What went wrong" in l:
             keep += lines[i:i + 20]
     print(f"::error title=Gradle output::{esc(chr(10).join(keep[-60:]) or chr(10).join(lines[-60:]))}")
+    print(f"::error title=Gradle output (end)::{esc(chr(10).join(lines[-40:]))}")
