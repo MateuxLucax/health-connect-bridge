@@ -108,7 +108,7 @@ One Gradle module; packages by layer, features inside `ui/`
 | `data/healthconnect` | `RecordMapping.kt`, `HealthConnectAccess.kt` | The synced record types with their metrics, the record-to-sample mapping; the client, supported types and requested permissions |
 | `data/network` | `ServerUrl.kt`, `LocalNetwork.kt` | URL validation, cleartext warning, private ranges; whether the server is on the local network and whether access is granted (Android 17+) |
 | `data` | `DeviceStatusRepository.kt` | Health Connect availability, granted vs. requested permissions, battery exemption, local network access when the server is local |
-| `sync` | `HealthSync.kt` | Changes API sync, initial reads, backfill |
+| `sync` | `HealthSync.kt` | Changes API sync, initial reads, backfill; skips records Health Connect can't read ([ADR 0014](adr/0014-skip-unreadable-records.md)) |
 | | `SyncRunner.kt`, `SyncErrors.kt` | One run at a time; records the outcome and returns success, failure or retry; maps exceptions to `SyncError` kinds (shared with the connection test) |
 | | `SyncScheduler.kt` | Unique work: `periodic-sync`, `sync-now`, `backfill` |
 | `ui` | `App.kt`, `AppActions.kt`, `WhileUiSubscribed.kt` | Onboarding until finished, then the Home and Settings tabs; activity callbacks passed to the screens |

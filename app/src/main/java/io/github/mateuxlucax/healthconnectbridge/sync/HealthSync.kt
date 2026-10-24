@@ -39,22 +39,39 @@ class HealthSync(
         { HealthConnectAccess.client(context) },
     )
 
-    /** Changes-API sync. Only advances the checkpoint after each successful upload. */
-    suspend fun incremental() {
+    /**
+     * Changes-API sync. Only advances the checkpoint after each successful upload. Returns how many unreadable
+     * stretches of records were skipped (see [readRange]).
+     */
+    suspend fun incremental(): Int {
         val client = client()
         val types = readableTypes(client)
         val typesKey = types.map { it.java.simpleName }.sorted().joinToString(",")
+        val skips = Skips()
 
         val saved = settings.changesToken?.takeIf { settings.changesTypes == typesKey }
         // Whether the token was taken during this run; such a token can't legitimately be expired.
         var fresh = saved == null
-        var token = saved ?: initialRead(client, types, typesKey, reinitDays())
+        var token = saved ?: initialRead(client, types, typesKey, reinitDays(), skips)
 
         while (true) {
-            val response = client.getChanges(token)
+            val response = try {
+                client.getChanges(token)
+            } catch (e: IllegalArgumentException) {
+                // A changed record Health Connect itself can't build (e.g. startTime == endTime, written by
+                // another app). A changes page can't be read around it, so re-read the range with a new token.
+                if (fresh) {
+                    // Also unreadable with a token from this run: stop here instead of looping; next run retries.
+                    skips.count++
+                    break
+                }
+                token = initialRead(client, types, typesKey, reinitDays(), skips)
+                fresh = true
+                continue
+            }
             if (response.changesTokenExpired) {
                 check(!fresh) { "Health Connect reported a new changes token as expired" }
-                token = initialRead(client, types, typesKey, EXPIRED_TOKEN_DAYS)
+                token = initialRead(client, types, typesKey, EXPIRED_TOKEN_DAYS, skips)
                 fresh = true
                 continue
             }
@@ -67,13 +84,16 @@ class HealthSync(
             token = response.nextChangesToken
             if (!response.hasMore) break
         }
+        return skips.count
     }
 
-    /** Re-reads the last [days] days without touching the checkpoint. */
-    suspend fun backfill(days: Int) {
+    /** Re-reads the last [days] days without touching the checkpoint. Returns the skips, like [incremental]. */
+    suspend fun backfill(days: Int): Int {
         val client = client()
         val end = Instant.now()
-        readRange(client, readableTypes(client), end.minus(Duration.ofDays(days.toLong())), end)
+        val skips = Skips()
+        readRange(client, readableTypes(client), end.minus(Duration.ofDays(days.toLong())), end, skips)
+        return skips.count
     }
 
     /**
@@ -92,35 +112,77 @@ class HealthSync(
         types: List<KClass<out Record>>,
         typesKey: String,
         days: Long,
+        skips: Skips,
     ): String {
         val token = client.getChangesToken(ChangesTokenRequest(types.toSet()))
         val end = Instant.now()
-        readRange(client, types, end.minus(Duration.ofDays(days)), end)
+        readRange(client, types, end.minus(Duration.ofDays(days)), end, skips)
         settings.saveChangesToken(token, typesKey)
         return token
     }
 
+    /** Number of unreadable stretches skipped during one run. */
+    private class Skips {
+        var count = 0
+    }
+
+    /**
+     * Reads and uploads every record of [types] in [start, end), page by page.
+     *
+     * Health Connect throws IllegalArgumentException for the whole page when one record in it fails the
+     * client library's own checks (e.g. "startTime must be before endTime." for a record some app stored with
+     * startTime == endTime). Then the window is split in halves and each is read on its own, so only the
+     * smallest window that still fails ([MIN_WINDOW], or any window once [MAX_FAILED_READS] is reached) is
+     * skipped. Adjacent skipped windows count as one skip.
+     */
     private suspend fun readRange(
         client: HealthConnectClient,
         types: List<KClass<out Record>>,
         start: Instant,
         end: Instant,
+        skips: Skips,
     ) {
         for (type in types) {
-            var pageToken: String? = null
-            do {
+            var failedReads = 0
+            var lastSkippedEnd: Instant? = null
+
+            suspend fun read(from: Instant, to: Instant) {
+                if (readPages(client, type, from, to)) return
+                failedReads++
+                if (Duration.between(from, to) <= MIN_WINDOW || failedReads >= MAX_FAILED_READS) {
+                    if (lastSkippedEnd != from) skips.count++
+                    lastSkippedEnd = to
+                    return
+                }
+                val middle = from.plus(Duration.between(from, to).dividedBy(2))
+                read(from, middle)
+                read(middle, to)
+            }
+
+            read(start, end)
+        }
+    }
+
+    /** Reads and uploads all pages of [type] in [from, to); false if Health Connect couldn't build a page. */
+    private suspend fun readPages(client: HealthConnectClient, type: KClass<out Record>, from: Instant, to: Instant): Boolean {
+        var pageToken: String? = null
+        do {
+            val response = try {
                 @Suppress("UNCHECKED_CAST")
-                val response = client.readRecords(
+                client.readRecords(
                     ReadRecordsRequest(
                         recordType = type as KClass<Record>,
-                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                        timeRangeFilter = TimeRangeFilter.between(from, to),
                         pageToken = pageToken,
                     )
                 )
-                upload(response.records.flatMap { it.toSamples() })
-                pageToken = response.pageToken
-            } while (!pageToken.isNullOrEmpty())
-        }
+            } catch (e: IllegalArgumentException) {
+                return false
+            }
+            upload(response.records.flatMap { it.toSamples() })
+            pageToken = response.pageToken
+        } while (!pageToken.isNullOrEmpty())
+        return true
     }
 
     private suspend fun upload(samples: List<Sample>) {
@@ -150,5 +212,11 @@ class HealthSync(
     private companion object {
         const val INITIAL_DAYS = 7L
         const val EXPIRED_TOKEN_DAYS = 30L
+
+        /** Smallest window [readRange] still splits; a failing window this short is skipped. */
+        val MIN_WINDOW: Duration = Duration.ofMinutes(1)
+
+        /** Failed reads per type and range after which failing windows are skipped without splitting them. */
+        const val MAX_FAILED_READS = 100
     }
 }

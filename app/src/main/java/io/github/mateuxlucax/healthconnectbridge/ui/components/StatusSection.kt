@@ -60,11 +60,18 @@ fun HistoryImport(last: BackfillResult?, onImport: (Int) -> Unit) {
             if (error == null) {
                 val time = rememberFormat().dateTime(last.finishedMs, java.time.ZoneId.systemDefault())
                 StatusLine(true, stringResource(R.string.backfill_done, time))
+                if (last.skipped > 0) SkippedNote(last.skipped)
             } else {
                 StatusLine(false, stringResource(R.string.backfill_failed, error.message(strings)))
             }
         }
     }
+}
+
+/** Secondary line for records Health Connect couldn't read, which a successful sync or import skipped. */
+@Composable
+fun SkippedNote(skipped: Int) {
+    StatusLine(null, pluralStringResource(R.plurals.skipped_unreadable, skipped, skipped))
 }
 
 /** Health Connect availability and granted count, with the button to grant what is missing. */

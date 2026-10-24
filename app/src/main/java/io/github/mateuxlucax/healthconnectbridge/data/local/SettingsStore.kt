@@ -49,14 +49,24 @@ class SettingsStore(private val prefs: SharedPreferences) {
         get() = readError(KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL)
         set(value) = prefs.edit().putError(KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL, value).apply()
 
+    /** Unreadable stretches of records skipped by the last successful incremental sync. */
+    var lastSkipped: Int
+        get() = prefs.getInt(KEY_LAST_SKIPPED, 0)
+        set(value) = prefs.edit().putInt(KEY_LAST_SKIPPED, value).apply()
+
     var lastBackfill: BackfillResult?
         get() {
             val finishedMs = prefs.getLong(KEY_BACKFILL_FINISHED, 0L).takeIf { it > 0 } ?: return null
-            return BackfillResult(finishedMs, readError(KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL))
+            return BackfillResult(
+                finishedMs,
+                readError(KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL),
+                prefs.getInt(KEY_BACKFILL_SKIPPED, 0),
+            )
         }
         set(value) = prefs.edit()
             .putLong(KEY_BACKFILL_FINISHED, value?.finishedMs ?: 0L)
             .putError(KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL, value?.error)
+            .putInt(KEY_BACKFILL_SKIPPED, value?.skipped ?: 0)
             .apply()
 
     private fun readError(kindKey: String, detailKey: String): SyncError? {
@@ -76,7 +86,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DONE, value).apply()
 
     /** The current [SyncState]. */
-    fun currentSyncState(): SyncState = SyncState(lastSuccessMs, lastError, lastBackfill)
+    fun currentSyncState(): SyncState = SyncState(lastSuccessMs, lastError, lastBackfill, lastSkipped)
 
     /** The [SyncState] now and after every sync that changes it. */
     val syncState: Flow<SyncState>
@@ -92,7 +102,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         /** Keys of the [SyncState]: written by syncs and shown by the screens. */
         internal val SYNC_STATE_KEYS get() = setOf(
             KEY_LAST_SUCCESS, KEY_LAST_ERROR, KEY_LAST_ERROR_DETAIL,
-            KEY_BACKFILL_FINISHED, KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL,
+            KEY_LAST_SKIPPED, KEY_BACKFILL_FINISHED, KEY_BACKFILL_ERROR, KEY_BACKFILL_ERROR_DETAIL, KEY_BACKFILL_SKIPPED,
         )
 
         private const val KEY_SERVER_URL = "server_url"
@@ -106,6 +116,8 @@ class SettingsStore(private val prefs: SharedPreferences) {
         private const val KEY_BACKFILL_FINISHED = "backfill_finished_ms"
         private const val KEY_BACKFILL_ERROR = "backfill_error"
         private const val KEY_BACKFILL_ERROR_DETAIL = "backfill_error_detail"
+        private const val KEY_LAST_SKIPPED = "last_skipped"
+        private const val KEY_BACKFILL_SKIPPED = "backfill_skipped"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
     }
 }

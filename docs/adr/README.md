@@ -19,3 +19,4 @@ Consequences). The server's decisions are in the
 | [0011](0011-local-network-permission.md) | Ask for the local network permission when the server is local | Accepted |
 | [0012](0012-automatic-releases.md) | Release automatically on every green push to main | Accepted |
 | [0013](0013-code-structure.md) | Code structure: layered packages, manual DI and ViewModels | Accepted |
+| [0014](0014-skip-unreadable-records.md) | Skip records Health Connect can't read | Accepted |

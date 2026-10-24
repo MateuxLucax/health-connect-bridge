@@ -62,6 +62,7 @@ Galaxy Watch
 | Home says **Local network permission needed** | The background sync can't ask for it. Tap **Allow local network access** on Home. |
 | **Server rejected the token (401)** | The token in the app doesn't match the exporter's `AUTH_TOKEN`. |
 | **Server redirected the request** | Usually `http://` where the proxy redirects to `https://`. Use the `https://` URL. |
+| Import history or sync failed with **IllegalArgumentException: startTime must be before endTime** (versions before this fix) | Another app (seen with Samsung Health) stored a record Health Connect itself can't read back, such as one that ends when it starts. Update the app: it now skips those records and shows **Skipped N unreadable records from Health Connect** instead of failing. The other data is still sent. |
 
 ## Metrics
 

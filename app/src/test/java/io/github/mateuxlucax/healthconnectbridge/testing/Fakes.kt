@@ -21,6 +21,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import com.sun.net.httpserver.HttpServer
 import org.json.JSONObject
 import java.net.InetSocketAddress
+import java.time.Instant
 import java.util.Collections
 import kotlin.reflect.KClass
 
@@ -104,6 +105,13 @@ class FakeHealthConnectClient(
     var readHandler: (ReadRecordsRequest<*>) -> ReadRecordsResponse<*> = { ReadRecordsResponse(emptyList<Record>(), null) }
     var changesHandler: (String) -> ChangesResponse = { error("unexpected getChanges($it)") }
 
+    /**
+     * Records Health Connect can't build, by type: readRecords throws IllegalArgumentException, like the client
+     * library does for e.g. a record with startTime == endTime, whenever the requested window contains one.
+     * (getChanges can throw the same way from [changesHandler].)
+     */
+    val unreadable = mutableListOf<Pair<KClass<out Record>, Instant>>()
+
     override val permissionController = object : PermissionController {
         override suspend fun getGrantedPermissions(): Set<String> = granted
         override suspend fun revokeAllPermissions() = unused()
@@ -133,6 +141,12 @@ class FakeHealthConnectClient(
     override suspend fun <T : Record> readRecords(request: ReadRecordsRequest<T>): ReadRecordsResponse<T> {
         calls += "readRecords:${request.recordType.simpleName}:${request.pageToken}"
         readRequests += request
+        val start = request.timeRangeFilter.startTime
+        val end = request.timeRangeFilter.endTime
+        val bad = unreadable.any { (type, at) ->
+            type == request.recordType && (start == null || !at.isBefore(start)) && (end == null || at.isBefore(end))
+        }
+        if (bad) throw IllegalArgumentException("startTime must be before endTime.")
         return readHandler(request) as ReadRecordsResponse<T>
     }
 

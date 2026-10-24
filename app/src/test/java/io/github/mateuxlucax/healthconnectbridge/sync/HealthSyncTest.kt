@@ -83,6 +83,35 @@ class HealthSyncTest {
 
     private fun run() = runBlocking { sync.incremental() }
 
+    /** Steps record [ago] before now, lasting 30 s. */
+    private fun stepsAgo(ago: Duration, count: Long): StepsRecord {
+        val start = Instant.now().minus(ago)
+        return StepsRecord(start, null, start.plusSeconds(30), null, count, TestMetadata.from("com.example.app"))
+    }
+
+    private fun weightAgo(ago: Duration) =
+        WeightRecord(Instant.now().minus(ago), null, Mass.kilograms(70.0), TestMetadata.from("com.scale"))
+
+    /** Answers each read with the records of its type that start inside the requested window, like Health Connect. */
+    private fun readByWindow(vararg byType: Pair<KClass<out Record>, List<Record>>) {
+        val map = byType.toMap()
+        client.readHandler = { r ->
+            val from = r.timeRangeFilter.startTime!!
+            val to = r.timeRangeFilter.endTime!!
+            val inWindow = map[r.recordType].orEmpty().filter {
+                val at = when (it) {
+                    is StepsRecord -> it.startTime
+                    is WeightRecord -> it.time
+                    else -> error("unexpected record $it")
+                }
+                !at.isBefore(from) && at.isBefore(to)
+            }
+            ReadRecordsResponse(inWindow, null)
+        }
+    }
+
+    private fun unreadable(): Nothing = throw IllegalArgumentException("startTime must be before endTime.")
+
     private fun runExpectingFailure(): Throwable {
         try {
             run()
@@ -441,5 +470,148 @@ class HealthSyncTest {
 
         assertNull(settings.changesToken)
         client.readRequests.forEach { assertRangeDays(it, 14) }
+    }
+
+    // ---- records Health Connect can't read -----------------------------------------------------
+
+    @Test
+    fun backfill_skipsUnreadableRecord_uploadsEverythingElse() {
+        val steps = (1L..5L).map { stepsAgo(Duration.ofHours(it * 12), it) }
+        readByWindow(
+            StepsRecord::class to steps,
+            WeightRecord::class to listOf(weightAgo(Duration.ofHours(30)), weightAgo(Duration.ofHours(40))),
+        )
+        // E.g. a record another app wrote with startTime == endTime, between steps 2 and 3.
+        client.unreadable += StepsRecord::class to Instant.now().minus(Duration.ofHours(30))
+
+        val skipped = runBlocking { sync.backfill(3) }
+
+        assertEquals(1, skipped)
+        val samples = server.samples()
+        assertEquals(
+            listOf(1L, 2L, 3L, 4L, 5L),
+            samples.filter { it.getString("metric") == "health_steps" }.map { it.getLong("value") }.sorted(),
+        )
+        assertEquals(2, samples.count { it.getString("metric") == "health_weight_kg" })
+        // Bisecting 3 days down to 1 minute takes ~13 levels of 2 reads each, plus one read for weight.
+        assertTrue("too many reads: ${readCalls().size}", readCalls().size <= 2 + 2 * 14)
+        assertEquals(1, readCalls().count { it.contains("WeightRecord") })
+    }
+
+    @Test
+    fun backfill_twoUnreadableRecords_countsBoth() {
+        readByWindow(StepsRecord::class to listOf(stepsAgo(Duration.ofHours(10), 7)))
+        client.unreadable += StepsRecord::class to Instant.now().minus(Duration.ofHours(5))
+        client.unreadable += StepsRecord::class to Instant.now().minus(Duration.ofHours(50))
+
+        val skipped = runBlocking { sync.backfill(3) }
+
+        assertEquals(2, skipped)
+        assertEquals(listOf(7L), server.samples().map { it.getLong("value") })
+    }
+
+    @Test
+    fun backfill_everythingUnreadable_terminatesAsOneSkip() {
+        client.granted = permissionsFor(StepsRecord::class)
+        // Fails every window, however small: bisection must stop on its own.
+        client.readHandler = { unreadable() }
+
+        val skipped = runBlocking { sync.backfill(30) }
+
+        assertEquals(1, skipped)
+        assertTrue("too many reads: ${readCalls().size}", readCalls().size in 2..201) // at most 2 × MAX_FAILED_READS + 1
+        assertEquals(0, server.requests.size)
+    }
+
+    @Test
+    fun backfill_otherReadErrors_stillFail() {
+        client.readHandler = { throw IllegalStateException("rate limited") }
+
+        try {
+            runBlocking { sync.backfill(3) }
+            fail("expected the backfill to fail")
+        } catch (e: IllegalStateException) {
+            assertEquals("rate limited", e.message)
+        }
+        assertEquals(1, readCalls().size)
+    }
+
+    @Test
+    fun firstRun_unreadableRecord_isSkipped_andCheckpointStored() {
+        client.issuedTokens += "t1"
+        readByWindow(StepsRecord::class to listOf(stepsAgo(Duration.ofDays(2), 4)))
+        client.unreadable += StepsRecord::class to Instant.now().minus(Duration.ofDays(1))
+        client.changesHandler = { changes(next = "t2") }
+
+        val skipped = run()
+
+        assertEquals(1, skipped)
+        assertEquals(listOf(4L), server.samples().map { it.getLong("value") })
+        assertEquals("t2", settings.changesToken)
+    }
+
+    @Test
+    fun unreadableChange_reinitializesWithNewToken_andAdvances() {
+        initialize("t1")
+        client.issuedTokens += "n1"
+        readByWindow(StepsRecord::class to listOf(stepsAgo(Duration.ofHours(1), 9)))
+        client.changesHandler = { token ->
+            when (token) {
+                "t1" -> unreadable()
+                "n1" -> changes(UpsertionChange(steps()), next = "n2")
+                else -> error("unexpected token $token")
+            }
+        }
+
+        val skipped = run()
+
+        assertEquals(0, skipped)
+        // New token first, then the range since the last checkpoint (at least 7 days), then the new token's changes.
+        assertEquals("getChangesToken", client.calls[1])
+        assertTrue(client.readRequests.isNotEmpty())
+        client.readRequests.forEach { assertRangeDays(it, 7) }
+        assertEquals(listOf("getChanges:t1", "getChanges:n1"), changesCalls())
+        assertEquals(listOf(9L, 1L), server.samples().map { it.getLong("value") })
+        assertEquals("n2", settings.changesToken)
+    }
+
+    @Test
+    fun unreadableChange_afterLongOutage_rereadsSinceLastCheckpoint() {
+        initialize("t1")
+        settings.saveChangesToken("t1", settings.changesTypes!!, System.currentTimeMillis() - Duration.ofDays(12).toMillis())
+        client.issuedTokens += "n1"
+        client.changesHandler = { token -> if (token == "t1") unreadable() else changes(next = "n2") }
+
+        run()
+
+        client.readRequests.forEach { assertRangeDays(it, 13) }
+        assertEquals("n2", settings.changesToken)
+    }
+
+    @Test
+    fun unreadableChange_againWithNewToken_endsTheRunInsteadOfLooping() {
+        initialize("t1")
+        client.issuedTokens += listOf("n1", "n2", "n3")
+        client.changesHandler = { unreadable() }
+
+        val skipped = run()
+
+        assertEquals(1, skipped)
+        assertEquals(1, client.calls.count { it == "getChangesToken" })
+        assertEquals(listOf("getChanges:t1", "getChanges:n1"), changesCalls())
+        // The new token is kept: the next run starts from it and tries again.
+        assertEquals("n1", settings.changesToken)
+    }
+
+    @Test
+    fun otherChangesErrors_stillFail_andKeepTheCheckpoint() {
+        initialize("t1")
+        client.changesHandler = { throw IllegalStateException("rate limited") }
+
+        val error = runExpectingFailure()
+
+        assertTrue(error is IllegalStateException)
+        assertFalse(client.calls.contains("getChangesToken"))
+        assertEquals("t1", settings.changesToken)
     }
 }

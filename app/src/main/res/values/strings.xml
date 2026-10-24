@@ -70,6 +70,10 @@
     <string name="import_scheduled">Import scheduled. It runs in the background. The result appears under Import history.</string>
     <string name="backfill_done">Last import: %1$s.</string>
     <string name="backfill_failed">Last import failed: %1$s</string>
+    <plurals name="skipped_unreadable">
+        <item quantity="one">Skipped %d unreadable record from Health Connect.</item>
+        <item quantity="other">Skipped %d unreadable records from Health Connect.</item>
+    </plurals>
     <string name="hc_update_required">Update Health Connect to continue.</string>
     <string name="hc_unavailable">Health Connect isn’t available on this device.</string>
     <plurals name="permissions_all">

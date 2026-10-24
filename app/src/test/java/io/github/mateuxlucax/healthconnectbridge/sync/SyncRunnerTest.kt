@@ -38,7 +38,7 @@ class SyncRunnerTest {
     fun tearDown() = server.close()
 
     private fun runWith(block: suspend () -> Unit): ListenableWorker.Result =
-        runBlocking { SyncRunner.runAndReport(settings, sync = block) }
+        runBlocking { SyncRunner.runAndReport(settings) { block(); 0 } }
 
     private val uploadOne: suspend () -> Unit = {
         exporter.upload(server.url, "t", listOf(Sample("health_steps", mapOf("source" to "a"), 1, 1L)))
@@ -177,6 +177,32 @@ class SyncRunnerTest {
     }
 
     @Test
+    fun skippedRecords_dontFailABackfill_andAreReported() {
+        val result = runBlocking { SyncRunner.runAndReport(settings, backfill = true) { 2 } }
+
+        assertTrue(result is ListenableWorker.Result.Success)
+        assertNull(settings.lastBackfill!!.error)
+        assertEquals(2, settings.lastBackfill!!.skipped)
+        assertEquals(2, settings.currentSyncState().lastBackfill!!.skipped)
+    }
+
+    @Test
+    fun skippedRecords_dontFailAnIncrementalSync_andAreReported() {
+        settings.lastError = SyncError(SyncError.Kind.SERVER, "old error")
+
+        val result = runBlocking { SyncRunner.runAndReport(settings) { 3 } }
+
+        assertTrue(result is ListenableWorker.Result.Success)
+        assertNull(settings.lastError)
+        assertTrue(settings.lastSuccessMs > 0)
+        assertEquals(3, settings.currentSyncState().lastSkipped)
+
+        // The next clean run clears the note.
+        runBlocking { SyncRunner.runAndReport(settings) { 0 } }
+        assertEquals(0, settings.lastSkipped)
+    }
+
+    @Test
     fun errorSurvivesStorage() {
         settings.lastError = SyncError(SyncError.Kind.SERVER, "HTTP 502")
         assertEquals(SyncError(SyncError.Kind.SERVER, "HTTP 502"), settings.lastError)
@@ -234,6 +260,7 @@ class SyncRunnerTest {
         val result = runBlocking {
             SyncRunner.runAndReport(settings, localNetworkBlocked = { true }) {
                 exporter.upload("http://127.0.0.1:$closedPort", "t", listOf(Sample("m", mapOf("source" to "a"), 1, 1L)))
+                0
             }
         }
         assertTrue(result is ListenableWorker.Result.Failure)
@@ -253,7 +280,7 @@ class SyncRunnerTest {
     fun otherErrors_dontCheckTheLocalNetwork() {
         var checked = false
         server.status = { 401 }
-        runBlocking { SyncRunner.runAndReport(settings, localNetworkBlocked = { checked = true; true }, sync = uploadOne) }
+        runBlocking { SyncRunner.runAndReport(settings, localNetworkBlocked = { checked = true; true }, sync = { uploadOne(); 0 }) }
         assertEquals(SyncError(SyncError.Kind.UNAUTHORIZED), settings.lastError)
         assertFalse(checked)
     }

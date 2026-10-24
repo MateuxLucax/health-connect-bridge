@@ -39,15 +39,17 @@ object SyncRunner {
      * Runs [sync], records the outcome in [settings] and maps it to a WorkManager result. Only incremental
      * runs set the last success and error shown on Home; a backfill is reported as [SettingsStore.lastBackfill].
      * [localNetworkBlocked] turns a connect failure into [SyncError.Kind.LOCAL_NETWORK_PERMISSION].
+     * [sync] returns how many unreadable stretches of records it skipped; skips never fail a run.
      */
     internal suspend fun runAndReport(
         settings: SettingsStore,
         backfill: Boolean = false,
         localNetworkBlocked: suspend () -> Boolean = { false },
-        sync: suspend () -> Unit,
+        sync: suspend () -> Int,
     ): ListenableWorker.Result {
+        var skipped = 0
         val error = try {
-            sync()
+            skipped = sync()
             null
         } catch (e: CancellationException) {
             throw e
@@ -56,9 +58,12 @@ object SyncRunner {
         }
         val now = System.currentTimeMillis()
         if (backfill) {
-            settings.lastBackfill = BackfillResult(now, error)
+            settings.lastBackfill = BackfillResult(now, error, skipped)
         } else {
-            if (error == null) settings.lastSuccessMs = now
+            if (error == null) {
+                settings.lastSkipped = skipped
+                settings.lastSuccessMs = now
+            }
             settings.lastError = error
         }
         return when {

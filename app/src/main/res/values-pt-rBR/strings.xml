@@ -70,6 +70,11 @@
     <string name="import_scheduled">Importação agendada. Ela roda em segundo plano. O resultado aparece em Importar histórico.</string>
     <string name="backfill_done">Última importação: %1$s.</string>
     <string name="backfill_failed">Última importação falhou: %1$s</string>
+    <plurals name="skipped_unreadable">
+        <item quantity="one">%d registro ilegível do Health Connect foi ignorado.</item>
+        <item quantity="many">%d registros ilegíveis do Health Connect foram ignorados.</item>
+        <item quantity="other">%d registros ilegíveis do Health Connect foram ignorados.</item>
+    </plurals>
     <string name="hc_update_required">Atualize o Health Connect para continuar.</string>
     <string name="hc_unavailable">O Health Connect não está disponível neste aparelho.</string>
     <plurals name="permissions_all">

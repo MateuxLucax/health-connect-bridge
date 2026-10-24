@@ -6,6 +6,7 @@
 - [Changes token expired](#changes-token-expired)
 - [Error handling](#error-handling)
 - [Backfill (history import)](#backfill-history-import)
+- [Records Health Connect can't read](#records-health-connect-cant-read)
 - [Connection test](#connection-test)
 - [End to end: app, exporter, Prometheus](#end-to-end-app-exporter-prometheus)
 
@@ -209,6 +210,10 @@ with `failure`; any other exception (for example Health Connect rate
 limiting) ends with `retry`. A `failure` ends that run only; the periodic job runs again at its
 next interval.
 
+The exception is an `IllegalArgumentException` from `readRecords` or `getChanges`: Health Connect couldn't
+build a record that another app stored. Those records are skipped instead of failing the run; see
+[Records Health Connect can't read](#records-health-connect-cant-read).
+
 ## Backfill (history import)
 
 Started from onboarding or Settings with a number of days (default 30).
@@ -242,6 +247,72 @@ sequenceDiagram
 Samples older than Prometheus' out-of-order window (30 days in the exporter's
 example config) are rejected by Prometheus and dropped by the exporter; the
 request still succeeds.
+
+Records Health Connect can't read are skipped and counted, without failing the import; see
+[Records Health Connect can't read](#records-health-connect-cant-read).
+
+## Records Health Connect can't read
+
+The Health Connect client library checks every record it builds, for example
+`require(startTime.isBefore(endTime)) { "startTime must be before endTime." }` in `StepsRecord`,
+`SleepSessionRecord` and `ExerciseSessionRecord`, plus stage, segment and lap bounds for sessions. If another
+app (seen with Samsung Health) stored a record that fails these checks, `readRecords` and `getChanges` throw
+`IllegalArgumentException` for the whole page. Until this was handled, one such record failed every history import and
+every incremental sync for good. See [ADR 0014](adr/0014-skip-unreadable-records.md).
+
+**Reading a range** (backfill, first run, re-initialisation): the window of the failing type is split in
+halves and each half read on its own, recursively. A window of at most one minute that still fails is skipped.
+After 100 failed reads for one type, failing windows are skipped without splitting them, which bounds the reads.
+Adjacent skipped windows count as one skip.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as HealthSync
+    participant HC as Health Connect
+    participant E as Exporter
+
+    S->>HC: readRecords(type, [a, b))
+    HC--xS: IllegalArgumentException
+    S->>HC: readRecords(type, [a, m)), each page
+    HC-->>S: records
+    S->>E: POST /api/v1/samples
+    S->>HC: readRecords(type, [m, b))
+    HC--xS: IllegalArgumentException
+    Note over S,HC: keep splitting the failing half; a failing window ≤ 1 min is skipped (skips + 1)
+```
+
+**Changes API**: a changes page can't be read around a bad record, so `HealthSync` re-initialises: it takes a
+new token, reads (with the splitting above) everything since the last saved checkpoint (at least 7 days, at
+most 30), saves the new token and continues with it. If the new token's changes fail the same way in the same
+run, the run ends successfully with one more skip, keeping the new token; the next run tries again. The run
+can't loop, and the checkpoint always advances.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as HealthSync
+    participant HC as Health Connect
+    participant SP as SharedPreferences
+
+    S->>HC: getChanges(T)
+    HC--xS: IllegalArgumentException
+    S->>HC: getChangesToken(types)
+    HC-->>S: T0
+    Note over S,HC: read and upload since the last checkpoint (7–30 days), skipping unreadable windows
+    S->>SP: save changes_token = T0
+    S->>HC: getChanges(T0)
+    alt readable
+        Note over S,HC: normal incremental loop continues
+    else IllegalArgumentException again
+        Note over S: end the run as a success with one more skip
+    end
+```
+
+Skips never fail a run. `SyncRunner` stores their count (`last_skipped` for the incremental sync,
+`backfill_skipped` for the import), and Home or Import history shows a secondary line: "Skipped N unreadable
+records from Health Connect." Any other exception still fails or retries as described in
+[Error handling](#error-handling).
 
 ## Connection test
 

@@ -48,6 +48,7 @@ import io.github.mateuxlucax.healthconnectbridge.ui.components.BackgroundWarning
 import io.github.mateuxlucax.healthconnectbridge.ui.components.Category
 import io.github.mateuxlucax.healthconnectbridge.ui.components.DATA_TYPES
 import io.github.mateuxlucax.healthconnectbridge.ui.components.IconRow
+import io.github.mateuxlucax.healthconnectbridge.ui.components.SkippedNote
 import io.github.mateuxlucax.healthconnectbridge.ui.components.StatusLine
 import io.github.mateuxlucax.healthconnectbridge.ui.format.Format
 import io.github.mateuxlucax.healthconnectbridge.ui.format.message
@@ -88,7 +89,9 @@ fun HomeScreen(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        SyncCard(state.lastSuccessMs, state.lastError, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow)
+        SyncCard(
+            state.lastSuccessMs, state.lastError, state.skipped, status?.backgroundMissing == true, now, zone, format, actions, onSyncNow,
+        )
         ExportedValues(state.values, now, zone, format)
     }
 }
@@ -97,6 +100,7 @@ fun HomeScreen(
 private fun SyncCard(
     lastSuccess: Long,
     lastError: SyncError?,
+    skipped: Int,
     backgroundMissing: Boolean,
     now: Long,
     zone: ZoneId,
@@ -132,6 +136,7 @@ private fun SyncCard(
                 lastSuccess > 0 -> StatusLine(true, stringResource(R.string.status_ok))
                 else -> StatusLine(null, stringResource(R.string.status_auto))
             }
+            if (lastError == null && skipped > 0) SkippedNote(skipped)
             if (backgroundMissing) BackgroundWarning()
             if (lastError?.kind == SyncError.Kind.LOCAL_NETWORK_PERMISSION) {
                 OutlinedButton(
