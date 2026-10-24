@@ -85,7 +85,8 @@ jobs:
         run: |
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
           certs=$("$apksigner" verify --print-certs "health-connect-bridge-$VERSION_NAME.apk" 2>&1) || true
-          sha256=$(echo "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          # e.g. "Signer #1 certificate SHA-256 digest: <hex>" or "V2 Signer: certificate SHA-256 digest: <hex>".
+          sha256=$(echo "$certs" | grep -i -m 1 'certificate SHA-256 digest:' | sed 's/.*[Dd]igest: *//')
           if [ -z "$sha256" ]; then
             echo "::error title=apksigner ($apksigner)::$(echo "$certs" | head -n 20 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
             exit 1
