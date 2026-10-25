@@ -2,6 +2,14 @@
 
 <h1 align="center">Health Connect Bridge</h1>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
+  <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white" alt="Prometheus">
+  <img src="https://img.shields.io/badge/grafana-%23F46800.svg?style=for-the-badge&logo=grafana&logoColor=white" alt="Grafana">
+</p>
+
 Android app that reads your health data from [Health Connect](https://developer.android.com/health-and-fitness/guides/health-connect) in the background and sends it, already mapped to Prometheus metric names, to [health-connect-prometheus-exporter](https://github.com/MateuxLucax/health-connect-prometheus-exporter), which writes it to Prometheus with the original timestamps.
 
 Built for a Galaxy Watch + Samsung Health setup, but it works with any app that writes to Health Connect. Personal, sideloaded app: there is no Play Store listing.
@@ -26,14 +34,12 @@ Taken on an emulator by the integration test (see [Building](#building)) and ref
 
 ## Architecture
 
-```
-Galaxy Watch
-  └─> Samsung Health
-        └─> Health Connect
-              └─> Health Connect Bridge (this app)
-                    └─> POST /api/v1/samples
-                          └─> health-connect-prometheus-exporter
-                                └─> Prometheus (remote write)
+```mermaid
+flowchart LR
+    watch["Galaxy Watch"] --> sh["Samsung Health"] --> hc["Health Connect"]
+    hc --> app["Health Connect Bridge<br/>(this app)"]
+    app -->|"POST /api/v1/samples"| exp["health-connect-<br/>prometheus-exporter"]
+    exp -->|"remote write"| prom[("Prometheus")] --> graf["Grafana"]
 ```
 
 - A WorkManager job runs every 15 minutes by default (30 min, 1, 3, 6, 12 or 24 hours in **Settings**) when there is network.
